@@ -1,414 +1,288 @@
 """
-Visualization utilities for UAV path planning simulation.
+Plotting utilities for the UAV path planning simulation.
 """
+
+import base64
+from io import BytesIO
+from typing import Dict, List, Tuple, Any, Optional, Union
 
 import numpy as np
 import matplotlib.pyplot as plt
-from typing import Dict, List, Tuple, Any
 
-def plot_trajectory(trajectory, world_size, users=None, connection_range=None, title="UAV Trajectory"):
+def plot_trajectory(
+    trajectory: Union[List[Tuple[float, float]], Dict[str, List[Tuple[float, float]]]],
+    world_size: Tuple[float, float] = (1000, 1000),
+    title: str = "UAV Trajectory"
+) -> str:
     """
-    Plot the trajectory of the UAV.
+    Plot the UAV trajectory.
     
     Args:
-        trajectory: List of (x, y) positions
-        world_size: Tuple of (width, height)
-        users: Optional list of user positions
-        connection_range: Optional communication range
-        title: Title for the plot
+        trajectory: Either a list of (x, y) positions or a dictionary with algorithm names as keys and trajectories as values
+        world_size: Size of the world in meters
+        title: Title of the plot
         
     Returns:
-        Matplotlib figure
+        Base64 encoded PNG image
     """
-    fig, ax = plt.subplots(figsize=(10, 8))
+    fig = plt.figure(figsize=(10, 8))
     
-    # Plot the trajectory
-    x = [pos[0] for pos in trajectory]
-    y = [pos[1] for pos in trajectory]
-    ax.plot(x, y, 'b-', linewidth=2, alpha=0.7, label='UAV Path')
+    # Check if trajectory is a dictionary for comparison
+    if isinstance(trajectory, dict):
+        # Define colors for different algorithms
+        colors = {'MCTS': 'blue', 'RRT': 'red', 'ASTAR': 'green'}
+        
+        # Plot each trajectory
+        for alg_name, traj in trajectory.items():
+            if not traj:
+                continue
+                
+            x = [pos[0] for pos in traj]
+            y = [pos[1] for pos in traj]
+            plt.plot(x, y, '-', label=alg_name, color=colors.get(alg_name, 'gray'), linewidth=2)
+            
+            # Plot start and end points
+            plt.scatter(x[0], y[0], color=colors.get(alg_name, 'gray'), marker='o', s=100, label=f"{alg_name} Start")
+            plt.scatter(x[-1], y[-1], color=colors.get(alg_name, 'gray'), marker='x', s=100, label=f"{alg_name} End")
+    else:
+        # Plot single trajectory
+        if trajectory:
+            x = [pos[0] for pos in trajectory]
+            y = [pos[1] for pos in trajectory]
+            plt.plot(x, y, 'b-', linewidth=2)
+            
+            # Plot start and end points
+            plt.scatter(x[0], y[0], color='green', marker='o', s=100, label="Start")
+            plt.scatter(x[-1], y[-1], color='red', marker='x', s=100, label="End")
     
-    # Plot start and end points
-    ax.plot(x[0], y[0], 'go', markersize=10, label='Start')
-    ax.plot(x[-1], y[-1], 'ro', markersize=10, label='End')
+    # Set plot limits
+    plt.xlim(0, world_size[0])
+    plt.ylim(0, world_size[1])
     
-    # Plot users if provided
-    if users:
-        user_x = [user[0] for user in users]
-        user_y = [user[1] for user in users]
-        ax.scatter(user_x, user_y, c='purple', marker='^', s=100, label='Users')
+    # Add grid and labels
+    plt.grid(True)
+    plt.xlabel('X (m)')
+    plt.ylabel('Y (m)')
+    plt.title(title)
+    plt.legend()
     
-    # Plot connection range if provided
-    if connection_range and len(trajectory) > 0:
-        circle = plt.Circle(trajectory[-1], connection_range, color='g', fill=False, linestyle='--', alpha=0.5)
-        ax.add_artist(circle)
-        ax.text(trajectory[-1][0], trajectory[-1][1] + connection_range/10, f"Range: {connection_range}m", 
-                ha='center', va='bottom', color='g')
+    # Convert plot to base64 string
+    buf = BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+    plot_base64 = base64.b64encode(buf.read()).decode('utf-8')
+    plt.close(fig)
     
-    # Set plot limits and labels
-    ax.set_xlim(0, world_size[0])
-    ax.set_ylim(0, world_size[1])
-    ax.set_xlabel('X (m)')
-    ax.set_ylabel('Y (m)')
-    ax.set_title(title)
-    ax.grid(True)
-    ax.legend()
-    
-    # Make plot look better in dark mode
-    fig.patch.set_facecolor('#222222')
-    ax.set_facecolor('#333333')
-    ax.tick_params(colors='white')
-    ax.xaxis.label.set_color('white')
-    ax.yaxis.label.set_color('white')
-    ax.title.set_color('white')
-    ax.spines['bottom'].set_color('white')
-    ax.spines['top'].set_color('white')
-    ax.spines['left'].set_color('white')
-    ax.spines['right'].set_color('white')
-    
-    fig.tight_layout()
-    return fig
+    return plot_base64
 
-def plot_energy_consumption(energy_log, time_steps, title="Energy Consumption"):
+def plot_energy_consumption(
+    energy_log: Union[List[float], Dict[str, List[float]]],
+    time_steps: Optional[List[float]] = None,
+    title: str = "UAV Energy Consumption"
+) -> str:
     """
-    Plot the energy consumption over time.
+    Plot the UAV energy consumption.
     
     Args:
-        energy_log: List of energy values
+        energy_log: Either a list of energy values or a dictionary with algorithm names as keys and energy logs as values
         time_steps: List of time steps
-        title: Title for the plot
+        title: Title of the plot
         
     Returns:
-        Matplotlib figure
+        Base64 encoded PNG image
     """
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig = plt.figure(figsize=(10, 6))
     
-    # Plot energy consumption
-    ax.plot(time_steps, energy_log, 'r-', linewidth=2)
+    # Check if energy_log is a dictionary for comparison
+    if isinstance(energy_log, dict):
+        # Define colors for different algorithms
+        colors = {'MCTS': 'blue', 'RRT': 'red', 'ASTAR': 'green'}
+        
+        # Plot each energy log
+        for alg_name, log in energy_log.items():
+            if not log:
+                continue
+                
+            if time_steps and len(time_steps) == len(log):
+                x = time_steps
+            else:
+                x = range(len(log))
+                
+            plt.plot(x, log, '-', label=alg_name, color=colors.get(alg_name, 'gray'), linewidth=2)
+    else:
+        # Plot single energy log
+        if energy_log:
+            if time_steps and len(time_steps) == len(energy_log):
+                x = time_steps
+            else:
+                x = range(len(energy_log))
+                
+            plt.plot(x, energy_log, 'b-', linewidth=2)
     
-    # Plot initial and final energy
-    ax.plot(time_steps[0], energy_log[0], 'go', markersize=8, label='Initial Energy')
-    ax.plot(time_steps[-1], energy_log[-1], 'bo', markersize=8, label='Final Energy')
+    # Add grid and labels
+    plt.grid(True)
+    plt.xlabel('Time Step')
+    plt.ylabel('Energy (J)')
+    plt.title(title)
     
-    # Add energy consumption
-    energy_consumed = energy_log[0] - energy_log[-1]
-    ax.text(0.05, 0.05, f"Energy Consumed: {energy_consumed:.2f} J", 
-            transform=ax.transAxes, ha='left', va='bottom', 
-            bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+    if isinstance(energy_log, dict):
+        plt.legend()
     
-    # Set plot limits and labels
-    ax.set_xlim(0, time_steps[-1])
-    ax.set_ylim(0, energy_log[0] * 1.1)
-    ax.set_xlabel('Time (s)')
-    ax.set_ylabel('Energy (J)')
-    ax.set_title(title)
-    ax.grid(True)
-    ax.legend()
+    # Convert plot to base64 string
+    buf = BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+    plot_base64 = base64.b64encode(buf.read()).decode('utf-8')
+    plt.close(fig)
     
-    # Make plot look better in dark mode
-    fig.patch.set_facecolor('#222222')
-    ax.set_facecolor('#333333')
-    ax.tick_params(colors='white')
-    ax.xaxis.label.set_color('white')
-    ax.yaxis.label.set_color('white')
-    ax.title.set_color('white')
-    ax.spines['bottom'].set_color('white')
-    ax.spines['top'].set_color('white')
-    ax.spines['left'].set_color('white')
-    ax.spines['right'].set_color('white')
-    
-    fig.tight_layout()
-    return fig
+    return plot_base64
 
-def plot_comparative_trajectories(trajectories, world_size, title="Comparative Trajectories"):
+def plot_comparison_metrics(
+    results: Dict[str, Dict[str, Any]],
+    metrics_to_compare: List[str] = ['serviced_tasks', 'data_processed', 'total_flight_distance', 'energy_consumed', 'energy_efficiency'],
+    title: str = "Algorithm Performance Comparison"
+) -> str:
     """
-    Plot multiple trajectories for comparison.
+    Plot comparison of algorithm metrics.
     
     Args:
-        trajectories: Dictionary mapping algorithm names to lists of positions
-        world_size: Tuple of (width, height)
-        title: Title for the plot
+        results: Dictionary with algorithm names as keys and metrics dictionaries as values
+        metrics_to_compare: List of metric names to compare
+        title: Title of the plot
         
     Returns:
-        Matplotlib figure
+        Base64 encoded PNG image
     """
-    fig, ax = plt.subplots(figsize=(10, 8))
+    # Filter metrics to only include those we want to compare
+    filtered_metrics = {}
+    for alg_name, metrics in results.items():
+        filtered_metrics[alg_name] = {k: v for k, v in metrics.items() if k in metrics_to_compare and isinstance(v, (int, float))}
     
-    # Colors for different algorithms
-    colors = {
-        'mcts': 'blue',
-        'rrt': 'green',
-        'astar': 'red'
-    }
-    
-    # Plot each trajectory
-    for alg, path in trajectories.items():
-        x = [pos[0] for pos in path]
-        y = [pos[1] for pos in path]
-        color = colors.get(alg.lower(), 'purple')
-        ax.plot(x, y, color=color, linewidth=2, alpha=0.7, label=f"{alg}")
-        
-        # Plot start and end points
-        ax.plot(x[0], y[0], 'o', color=color, markersize=8)
-        ax.plot(x[-1], y[-1], 's', color=color, markersize=8)
-    
-    # Set plot limits and labels
-    ax.set_xlim(0, world_size[0])
-    ax.set_ylim(0, world_size[1])
-    ax.set_xlabel('X (m)')
-    ax.set_ylabel('Y (m)')
-    ax.set_title(title)
-    ax.grid(True)
-    ax.legend()
-    
-    # Make plot look better in dark mode
-    fig.patch.set_facecolor('#222222')
-    ax.set_facecolor('#333333')
-    ax.tick_params(colors='white')
-    ax.xaxis.label.set_color('white')
-    ax.yaxis.label.set_color('white')
-    ax.title.set_color('white')
-    ax.spines['bottom'].set_color('white')
-    ax.spines['top'].set_color('white')
-    ax.spines['left'].set_color('white')
-    ax.spines['right'].set_color('white')
-    
-    fig.tight_layout()
-    return fig
-
-def plot_comparative_energy_consumption(energy_logs, time_steps, title="Comparative Energy Consumption"):
-    """
-    Plot multiple energy consumption logs for comparison.
-    
-    Args:
-        energy_logs: Dictionary mapping algorithm names to lists of energy values
-        time_steps: Dictionary mapping algorithm names to lists of time steps
-        title: Title for the plot
-        
-    Returns:
-        Matplotlib figure
-    """
-    fig, ax = plt.subplots(figsize=(10, 6))
-    
-    # Colors for different algorithms
-    colors = {
-        'mcts': 'blue',
-        'rrt': 'green',
-        'astar': 'red'
-    }
-    
-    # Plot each energy log
-    for alg, energy in energy_logs.items():
-        color = colors.get(alg.lower(), 'purple')
-        time = time_steps[alg]
-        
-        # Make sure the time steps and energy log are the same length
-        min_len = min(len(time), len(energy))
-        time = time[:min_len]
-        energy = energy[:min_len]
-        
-        ax.plot(time, energy, color=color, linewidth=2, label=f"{alg}")
-    
-    # Set plot limits and labels
-    ax.set_xlabel('Time (s)')
-    ax.set_ylabel('Energy (J)')
-    ax.set_title(title)
-    ax.grid(True)
-    ax.legend()
-    
-    # Make plot look better in dark mode
-    fig.patch.set_facecolor('#222222')
-    ax.set_facecolor('#333333')
-    ax.tick_params(colors='white')
-    ax.xaxis.label.set_color('white')
-    ax.yaxis.label.set_color('white')
-    ax.title.set_color('white')
-    ax.spines['bottom'].set_color('white')
-    ax.spines['top'].set_color('white')
-    ax.spines['left'].set_color('white')
-    ax.spines['right'].set_color('white')
-    
-    fig.tight_layout()
-    return fig
-
-def plot_comparison_metrics(metrics, metrics_to_compare, title="Algorithm Performance Comparison"):
-    """
-    Plot a bar chart comparing metrics across algorithms.
-    
-    Args:
-        metrics: Dictionary mapping algorithm names to dictionaries of metrics
-        metrics_to_compare: List of metrics to compare
-        title: Title for the plot
-        
-    Returns:
-        Matplotlib figure
-    """
-    algorithms = list(metrics.keys())
+    # Number of metrics to compare
     n_metrics = len(metrics_to_compare)
+    if n_metrics == 0:
+        return ""
     
-    # Create a figure with a subplot for each metric
-    fig, axes = plt.subplots(n_metrics, 1, figsize=(10, 3 * n_metrics))
+    # Create figure
+    fig, axes = plt.subplots(nrows=1, ncols=n_metrics, figsize=(n_metrics * 4, 6))
     
-    # Make axes iterable if there's only one subplot
+    # Handle case with only one metric
     if n_metrics == 1:
         axes = [axes]
     
-    # Labels for metrics
-    metric_labels = {
-        'total_flight_distance': 'Total Flight Distance (m)',
-        'energy_consumed': 'Energy Consumed (J)',
-        'serviced_tasks': 'Serviced Tasks',
-        'avg_task_delay': 'Average Task Delay (s)',
-        'energy_efficiency': 'Energy Efficiency (bits/J)'
-    }
-    
-    # Colors for different algorithms
-    colors = {
-        'mcts': 'blue',
-        'rrt': 'green',
-        'astar': 'red'
-    }
+    # Define colors for different algorithms
+    colors = {'MCTS': 'royalblue', 'RRT': 'firebrick', 'ASTAR': 'forestgreen'}
     
     # Plot each metric
     for i, metric in enumerate(metrics_to_compare):
         ax = axes[i]
         
-        # Get values for this metric across algorithms
-        values = [metrics[alg][metric] for alg in algorithms]
+        # Extract values for this metric
+        alg_names = []
+        values = []
         
-        # Create bars
-        bar_positions = range(len(algorithms))
-        bars = ax.bar(bar_positions, values, width=0.6)
+        for alg_name, metrics in filtered_metrics.items():
+            if metric in metrics:
+                alg_names.append(alg_name)
+                values.append(metrics[metric])
         
-        # Color the bars
-        for j, bar in enumerate(bars):
-            bar.set_color(colors.get(algorithms[j].lower(), 'purple'))
+        # Skip if no values
+        if not alg_names:
+            continue
         
-        # Add value labels on top of bars
-        for j, v in enumerate(values):
-            ax.text(j, v, f"{v:.2f}", ha='center', va='bottom', fontsize=9)
+        # Create bar plot
+        bars = ax.bar(alg_names, values, color=[colors.get(name, 'gray') for name in alg_names])
         
-        # Set axis labels and title
-        ax.set_ylabel(metric_labels.get(metric, metric))
-        ax.set_xticks(bar_positions)
-        ax.set_xticklabels(algorithms)
-        ax.set_title(f"{metric_labels.get(metric, metric)}")
-        ax.grid(True, axis='y')
+        # Add value labels
+        for bar in bars:
+            height = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width()/2., height + 0.01 * max(values),
+                    f'{height:.2f}', ha='center', va='bottom', rotation=0)
         
-        # Make plot look better in dark mode
-        ax.set_facecolor('#333333')
-        ax.tick_params(colors='white')
-        ax.xaxis.label.set_color('white')
-        ax.yaxis.label.set_color('white')
-        ax.title.set_color('white')
-        ax.spines['bottom'].set_color('white')
-        ax.spines['top'].set_color('white')
-        ax.spines['left'].set_color('white')
-        ax.spines['right'].set_color('white')
+        # Set title and labels
+        ax.set_title(metric.replace('_', ' ').title())
+        ax.set_ylim(0, max(values) * 1.2)
+        
+        # Adjust x-axis labels
+        ax.set_xticklabels(alg_names, rotation=45)
+        
+        # Add grid
+        ax.grid(True, axis='y', linestyle='--', alpha=0.7)
     
-    # Set a main title
-    fig.suptitle(title, fontsize=16, color='white')
+    # Add overall title
+    fig.suptitle(title, fontsize=16)
     
-    # Make the figure look better in dark mode
-    fig.patch.set_facecolor('#222222')
+    # Adjust layout
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
     
-    fig.tight_layout(rect=[0, 0, 1, 0.96])  # Adjust for the main title
-    return fig
+    # Convert plot to base64 string
+    buf = BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+    plot_base64 = base64.b64encode(buf.read()).decode('utf-8')
+    plt.close(fig)
+    
+    return plot_base64
 
-def plot_simulation_progress(state, trajectory, comm_range, current_step, max_steps, title="Simulation Progress"):
+def plot_trajectory_with_users(
+    trajectory: List[Tuple[float, float]],
+    user_positions: List[List[Tuple[float, float]]],
+    world_size: Tuple[float, float] = (1000, 1000),
+    service_positions: Optional[List[Tuple[float, float]]] = None,
+    title: str = "UAV Trajectory with Users"
+) -> str:
     """
-    Plot the current state of the simulation.
+    Plot the UAV trajectory with user positions.
     
     Args:
-        state: Dictionary with the current state of the environment
-        trajectory: List of (x, y) positions
-        comm_range: Communication range
-        current_step: Current time step
-        max_steps: Maximum number of steps
-        title: Title for the plot
+        trajectory: List of UAV (x, y) positions
+        user_positions: List of lists of user (x, y) positions at each time step
+        world_size: Size of the world in meters
+        service_positions: List of positions where the UAV serviced users
+        title: Title of the plot
         
     Returns:
-        Matplotlib figure
+        Base64 encoded PNG image
     """
-    # Create a figure with a specified size
-    fig, ax = plt.subplots(figsize=(10, 8))
+    fig = plt.figure(figsize=(10, 8))
     
-    # Extract data from state
-    if 'uav_position' in state:
-        uav_position = state['uav_position']
-    elif len(trajectory) > 0:
-        uav_position = trajectory[-1]
-    else:
-        uav_position = (0, 0)
-    
-    # Get user positions and status
-    users_with_tasks = state.get('users_with_tasks', [])
-    all_users = state.get('all_users', [])
-    current_user = state.get('current_user', None)
-    
-    # Plot all users
-    if all_users:
-        user_positions = [user[1] for user in all_users]
-        for i, pos in enumerate(user_positions):
-            if i in users_with_tasks:
-                # User with an active task
-                ax.scatter(pos[0], pos[1], c='orange', marker='^', s=100)
-                ax.text(pos[0], pos[1] - 20, f"User {i}", fontsize=8, ha='center', color='white')
-            else:
-                # User without an active task
-                ax.scatter(pos[0], pos[1], c='gray', marker='^', s=80, alpha=0.5)
-                ax.text(pos[0], pos[1] - 20, f"User {i}", fontsize=8, ha='center', color='gray')
-            
-            # Highlight the current user being serviced
-            if i == current_user:
-                ax.add_artist(plt.Circle(pos, 30, color='yellow', fill=False, linestyle='-', linewidth=2))
-                ax.text(pos[0], pos[1] + 30, "Servicing", fontsize=10, ha='center', color='yellow')
-    
-    # Plot the UAV trajectory
+    # Plot UAV trajectory
     if trajectory:
         x = [pos[0] for pos in trajectory]
         y = [pos[1] for pos in trajectory]
-        ax.plot(x, y, 'b-', linewidth=1.5, alpha=0.7)
+        plt.plot(x, y, 'b-', linewidth=2, label="UAV Path")
+        
+        # Plot start and end points
+        plt.scatter(x[0], y[0], color='green', marker='o', s=100, label="Start")
+        plt.scatter(x[-1], y[-1], color='red', marker='x', s=100, label="End")
     
-    # Plot the UAV's current position and communication range
-    ax.scatter(uav_position[0], uav_position[1], c='red', marker='o', s=120)
-    ax.text(uav_position[0], uav_position[1] + 20, "UAV", fontsize=10, ha='center', color='white')
+    # Plot user positions at final time step
+    if user_positions and user_positions[-1]:
+        for i, pos in enumerate(user_positions[-1]):
+            plt.scatter(pos[0], pos[1], color='gray', marker='o', s=30)
+            plt.text(pos[0] + 5, pos[1] + 5, f"User {i}")
     
-    # Add communication range circle
-    circle = plt.Circle(uav_position, comm_range, color='green', fill=False, linestyle='--', alpha=0.7)
-    ax.add_artist(circle)
+    # Plot service positions
+    if service_positions:
+        for pos in service_positions:
+            plt.scatter(pos[0], pos[1], color='purple', marker='*', s=150, label="Service")
     
-    # Add progress information
-    progress_text = f"Step: {current_step}/{max_steps} ({current_step/max_steps*100:.1f}%)"
-    energy_text = f"Energy: {state.get('uav_energy', 0):.1f} J"
-    tasks_text = f"Tasks Serviced: {state.get('serviced_tasks', 0)}"
+    # Set plot limits
+    plt.xlim(0, world_size[0])
+    plt.ylim(0, world_size[1])
     
-    ax.text(0.02, 0.98, progress_text, transform=ax.transAxes, fontsize=10, va='top', color='white',
-            bbox=dict(boxstyle='round', facecolor='black', alpha=0.7))
-    ax.text(0.02, 0.93, energy_text, transform=ax.transAxes, fontsize=10, va='top', color='white',
-            bbox=dict(boxstyle='round', facecolor='black', alpha=0.7))
-    ax.text(0.02, 0.88, tasks_text, transform=ax.transAxes, fontsize=10, va='top', color='white',
-            bbox=dict(boxstyle='round', facecolor='black', alpha=0.7))
+    # Add grid and labels
+    plt.grid(True)
+    plt.xlabel('X (m)')
+    plt.ylabel('Y (m)')
+    plt.title(title)
+    plt.legend()
     
-    # Set axis limits, labels, and title
-    world_size = (1000, 1000)  # Default world size
-    ax.set_xlim(0, world_size[0])
-    ax.set_ylim(0, world_size[1])
-    ax.set_xlabel('X (m)')
-    ax.set_ylabel('Y (m)')
-    ax.set_title(title)
-    ax.grid(True)
+    # Convert plot to base64 string
+    buf = BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+    plot_base64 = base64.b64encode(buf.read()).decode('utf-8')
+    plt.close(fig)
     
-    # Make plot look better in dark mode
-    fig.patch.set_facecolor('#222222')
-    ax.set_facecolor('#333333')
-    ax.tick_params(colors='white')
-    ax.xaxis.label.set_color('white')
-    ax.yaxis.label.set_color('white')
-    ax.title.set_color('white')
-    ax.spines['bottom'].set_color('white')
-    ax.spines['top'].set_color('white')
-    ax.spines['left'].set_color('white')
-    ax.spines['right'].set_color('white')
-    
-    fig.tight_layout()
-    return fig
+    return plot_base64

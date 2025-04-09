@@ -3,7 +3,7 @@ UAV model for path planning simulation.
 """
 
 import math
-from typing import Tuple
+from typing import Tuple, Optional
 
 from utils.config import (
     UAV_INITIAL_POSITION,
@@ -39,17 +39,17 @@ class UAV:
             move_power: Power consumption when moving in Watts
             comm_power: Power consumption when communicating in Watts
         """
-        self._position = initial_position
-        self._speed = speed
-        self._energy = initial_energy
-        self._hover_power = hover_power
-        self._move_power = move_power
-        self._comm_power = comm_power
-        self._is_servicing = False
+        self.position = initial_position
+        self.speed = speed
+        self.energy = initial_energy
+        self.initial_energy = initial_energy
+        self.hover_power = hover_power
+        self.move_power = move_power
+        self.comm_power = comm_power
         
-        # Tracking movement
-        self._last_position = initial_position
-        self._total_distance = 0.0
+        # State variables
+        self.servicing_state = False
+        self.total_distance = 0.0
     
     def get_position(self) -> Tuple[float, float]:
         """
@@ -58,7 +58,7 @@ class UAV:
         Returns:
             Current position (x, y)
         """
-        return self._position
+        return self.position
     
     def set_position(self, position: Tuple[float, float]) -> None:
         """
@@ -67,11 +67,7 @@ class UAV:
         Args:
             position: New position (x, y)
         """
-        self._last_position = self._position
-        self._position = position
-        
-        # Update total distance
-        self._total_distance += self._calculate_distance(self._last_position, self._position)
+        self.position = position
     
     def get_speed(self) -> float:
         """
@@ -80,7 +76,7 @@ class UAV:
         Returns:
             Speed in m/s
         """
-        return self._speed
+        return self.speed
     
     def set_speed(self, speed: float) -> None:
         """
@@ -89,7 +85,7 @@ class UAV:
         Args:
             speed: New speed in m/s
         """
-        self._speed = speed
+        self.speed = speed
     
     def get_energy(self) -> float:
         """
@@ -98,7 +94,7 @@ class UAV:
         Returns:
             Current energy in Joules
         """
-        return self._energy
+        return self.energy
     
     def set_energy(self, energy: float) -> None:
         """
@@ -107,25 +103,25 @@ class UAV:
         Args:
             energy: New energy in Joules
         """
-        self._energy = energy
+        self.energy = max(0.0, energy)
     
-    def is_servicing(self) -> bool:
+    def get_servicing_state(self) -> bool:
         """
         Check if the UAV is currently servicing a user.
         
         Returns:
             True if servicing, False otherwise
         """
-        return self._is_servicing
+        return self.servicing_state
     
-    def set_servicing(self, is_servicing: bool) -> None:
+    def set_servicing(self, servicing_state: bool) -> None:
         """
         Set the servicing state.
         
         Args:
-            is_servicing: True if servicing, False otherwise
+            servicing_state: True if servicing, False otherwise
         """
-        self._is_servicing = is_servicing
+        self.servicing_state = servicing_state
     
     def get_total_distance(self) -> float:
         """
@@ -134,9 +130,9 @@ class UAV:
         Returns:
             Total distance in meters
         """
-        return self._total_distance
+        return self.total_distance
     
-    def move_towards(self, target_position: Tuple[float, float], time_step: float) -> None:
+    def move_towards(self, target_position: Tuple[float, float], time_step: float) -> Tuple[bool, bool]:
         """
         Move towards a target position.
         
@@ -147,50 +143,38 @@ class UAV:
         Returns:
             A tuple of (moved, reached_target) booleans
         """
-        # Store last position
-        self._last_position = self._position
+        # Calculate direction and distance to target
+        dx = target_position[0] - self.position[0]
+        dy = target_position[1] - self.position[1]
+        distance = self._calculate_distance(self.position, target_position)
         
-        # Calculate distance to target
-        dx = target_position[0] - self._position[0]
-        dy = target_position[1] - self._position[1]
-        distance = math.sqrt(dx * dx + dy * dy)
+        # Check if already at target
+        if distance < 0.1:
+            return False, True
         
-        # Calculate maximum distance that can be traveled in the time step
-        max_distance = self._speed * time_step
+        # Calculate maximum distance to move in this time step
+        max_distance = self.speed * time_step
         
-        # If we can reach the target, move directly to it
+        # Move towards target
         if distance <= max_distance:
-            self._position = target_position
-            moved_distance = distance
+            # Reached target
+            new_position = target_position
+            self.total_distance += distance
+            self.position = new_position
+            return True, True
         else:
-            # Otherwise, move as far as possible towards the target
-            # Calculate unit vector in direction of target
+            # Move towards target
             direction_x = dx / distance
             direction_y = dy / distance
             
-            # Calculate new position
-            new_x = self._position[0] + direction_x * max_distance
-            new_y = self._position[1] + direction_y * max_distance
-            self._position = (new_x, new_y)
-            moved_distance = max_distance
-        
-        # Update total distance
-        self._total_distance += moved_distance
-        
-        # Update energy
-        # If moving, use move power; if not, use hover power
-        if moved_distance > 0.01:  # Small threshold to determine if we actually moved
-            power = self._move_power
-        else:
-            power = self._hover_power
-        
-        # Add communication power if servicing
-        if self._is_servicing:
-            power += self._comm_power
-        
-        # Calculate energy consumption
-        energy_consumed = power * time_step
-        self._energy -= energy_consumed
+            new_position = (
+                self.position[0] + direction_x * max_distance,
+                self.position[1] + direction_y * max_distance
+            )
+            
+            self.total_distance += max_distance
+            self.position = new_position
+            return True, False
     
     def _calculate_distance(self, pos1: Tuple[float, float], pos2: Tuple[float, float]) -> float:
         """
@@ -203,6 +187,4 @@ class UAV:
         Returns:
             Euclidean distance
         """
-        dx = pos2[0] - pos1[0]
-        dy = pos2[1] - pos1[1]
-        return math.sqrt(dx * dx + dy * dy)
+        return math.sqrt((pos1[0] - pos2[0])**2 + (pos1[1] - pos2[1])**2)

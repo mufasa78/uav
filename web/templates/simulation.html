@@ -1,119 +1,102 @@
 {% extends "layout.html" %}
+{% block title %}Simulation - UAV Path Planning{% endblock %}
+
+{% block head %}
+<style>
+    .control-card {
+        margin-bottom: 1rem;
+    }
+    .canvas-container {
+        margin-bottom: 1.5rem;
+    }
+    .metric-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+    .metric-label {
+        color: var(--bs-secondary);
+        font-size: 0.875rem;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="row">
-        <div class="col-lg-12">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h4 class="mb-0">UAV Path Planning Simulation</h4>
-                    <div class="d-flex align-items-center">
-                        <div class="me-3">
-                            <select id="algorithm-select" class="form-select">
-                                <option value="mcts">Monte Carlo Tree Search</option>
-                                <option value="rrt">Rapidly-exploring Random Tree</option>
-                            </select>
-                        </div>
-                        <button id="initialize-btn" class="btn btn-primary me-2">
-                            <i class="bi bi-arrow-clockwise"></i> Initialize
-                        </button>
-                        <button id="step-btn" class="btn btn-secondary me-2" disabled>
-                            <i class="bi bi-skip-forward"></i> Step
-                        </button>
-                        <button id="run-btn" class="btn btn-success" disabled>
-                            <i class="bi bi-play-fill"></i> Run
-                        </button>
-                    </div>
+<div class="row">
+    <div class="col-lg-3">
+        <div class="sidebar">
+            <div class="card control-card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Simulation Controls</h5>
                 </div>
                 <div class="card-body">
-                    <div id="simulation-container" class="text-center py-3">
-                        <div id="loading-indicator" class="d-none">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
-                            <p class="mt-3">Running simulation...</p>
+                    <form id="simulation-form">
+                        <div class="mb-3">
+                            <label for="algorithm" class="form-label">Algorithm</label>
+                            <select class="form-select" id="algorithm" name="algorithm">
+                                {% for algorithm in algorithms %}
+                                <option value="{{ algorithm }}">{{ algorithm|upper }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
-                        <div id="simulation-placeholder" class="bg-dark-subtle rounded-3 p-5">
-                            <i class="bi bi-robot fs-1 mb-3 text-primary"></i>
-                            <h5>Initialize the simulation to start</h5>
-                            <p class="text-muted">Click the "Initialize" button to set up the environment and algorithm.</p>
+                        <div class="mb-3">
+                            <label for="max-steps" class="form-label">Max Steps</label>
+                            <input type="number" class="form-control" id="max-steps" name="max-steps" value="1000" min="100" max="10000">
                         </div>
-                        <div id="simulation-content" class="d-none">
-                            <div class="row">
-                                <div class="col-md-8">
-                                    <div class="plot-container mb-3">
-                                        <img id="simulation-plot" src="" alt="Simulation Plot" class="img-fluid rounded">
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="card bg-dark-subtle">
-                                        <div class="card-header">
-                                            <h5 class="mb-0">Simulation Status</h5>
-                                        </div>
-                                        <div class="card-body">
-                                            <div id="simulation-status">
-                                                <p><strong>Algorithm:</strong> <span id="current-algorithm">-</span></p>
-                                                <p><strong>Step:</strong> <span id="current-step">0</span>/<span id="max-steps">0</span></p>
-                                                <p><strong>UAV Energy:</strong> <span id="uav-energy">0</span> J</p>
-                                                <p><strong>Tasks Serviced:</strong> <span id="tasks-serviced">0</span></p>
-                                                <p><strong>Data Processed:</strong> <span id="data-processed">0</span> MB</p>
-                                                <p><strong>Flight Distance:</strong> <span id="flight-distance">0</span> m</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="d-grid gap-2">
+                            <button type="button" id="reset-btn" class="btn btn-outline-secondary">Reset</button>
+                            <button type="button" id="run-btn" class="btn btn-primary">Run Simulation</button>
                         </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card metrics-card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Simulation Metrics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="metric-value" id="serviced-tasks">0</div>
+                        <div class="metric-label">Serviced Tasks</div>
                     </div>
-                    <div id="results-container" class="d-none">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="plot-container">
-                                    <h5 class="mb-2">UAV Trajectory</h5>
-                                    <img id="trajectory-plot" src="" alt="Trajectory Plot" class="img-fluid rounded">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="plot-container">
-                                    <h5 class="mb-2">Energy Consumption</h5>
-                                    <img id="energy-plot" src="" alt="Energy Plot" class="img-fluid rounded">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row mt-4">
-                            <div class="col-md-12">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <h5 class="mb-0">Performance Metrics</h5>
-                                    </div>
-                                    <div class="card-body">
-                                        <table class="table table-bordered metrics-table">
-                                            <thead class="table-dark">
-                                                <tr>
-                                                    <th>Metric</th>
-                                                    <th>Value</th>
-                                                    <th>Description</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="metrics-table-body">
-                                                <!-- Metrics will be added here dynamically -->
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="mb-3">
+                        <div class="metric-value" id="data-processed">0 MB</div>
+                        <div class="metric-label">Data Processed</div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="metric-value" id="energy-consumed">0 J</div>
+                        <div class="metric-label">Energy Consumed</div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="metric-value" id="total-distance">0 m</div>
+                        <div class="metric-label">Total Distance</div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="metric-value" id="remaining-energy">10000 J</div>
+                        <div class="metric-label">Remaining Energy</div>
                     </div>
                 </div>
-                <div class="card-footer d-flex justify-content-between">
-                    <button id="back-btn" class="btn btn-secondary d-none">
-                        <i class="bi bi-arrow-left"></i> Back to Simulation
-                    </button>
-                    <div>
-                        <a href="/comparison" class="btn btn-info" id="compare-btn">
-                            <i class="bi bi-bar-chart"></i> Compare Algorithms
-                        </a>
-                    </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-9">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">UAV Trajectory</h5>
+            </div>
+            <div class="card-body">
+                <div class="canvas-container">
+                    <canvas id="trajectory-canvas"></canvas>
+                </div>
+                
+                <h5 class="mt-4">Energy Consumption Over Time</h5>
+                <div class="canvas-container">
+                    <canvas id="energy-canvas"></canvas>
+                </div>
+                
+                <div class="alert alert-info mt-3 d-none" id="simulation-status">
+                    Simulation running...
                 </div>
             </div>
         </div>
@@ -123,221 +106,282 @@
 
 {% block scripts %}
 <script>
-    $(document).ready(function() {
-        // State variables
-        let currentAlgorithm = 'mcts';
-        let simulationActive = false;
-        let simulationComplete = false;
-        
-        // Initialize button
-        $('#initialize-btn').click(function() {
-            // Get selected algorithm
-            currentAlgorithm = $('#algorithm-select').val();
-            
-            // Show loading indicator
-            $('#loading-indicator').removeClass('d-none');
-            $('#simulation-placeholder').addClass('d-none');
-            
-            // Initialize algorithm
-            $.ajax({
-                url: '/api/initialize/' + currentAlgorithm,
-                method: 'POST',
-                success: function(data) {
-                    // Enable step and run buttons
-                    $('#step-btn').prop('disabled', false);
-                    $('#run-btn').prop('disabled', false);
-                    
-                    // Set algorithm name
-                    $('#current-algorithm').text(currentAlgorithm.toUpperCase());
-                    
-                    // Hide loading indicator
-                    $('#loading-indicator').addClass('d-none');
-                    
-                    // Show simulation content
-                    $('#simulation-content').removeClass('d-none');
-                    
-                    // Set simulation active
-                    simulationActive = true;
-                    simulationComplete = false;
-                    
-                    // Reset results
-                    $('#results-container').addClass('d-none');
-                    $('#back-btn').addClass('d-none');
-                },
-                error: function(error) {
-                    console.error('Error initializing algorithm:', error);
-                    
-                    // Hide loading indicator
-                    $('#loading-indicator').addClass('d-none');
-                    $('#simulation-placeholder').removeClass('d-none');
-                    
-                    // Show error alert
-                    alert('Error initializing algorithm. Please try again.');
-                }
-            });
-        });
-        
-        // Step button
-        $('#step-btn').click(function() {
-            if (!simulationActive) return;
-            
-            // Show loading indicator
-            $('#loading-indicator').removeClass('d-none');
-            $('#simulation-content').addClass('d-none');
-            
-            // Step algorithm
-            $.ajax({
-                url: '/api/step/' + currentAlgorithm,
-                method: 'POST',
-                success: function(data) {
-                    // Hide loading indicator
-                    $('#loading-indicator').addClass('d-none');
-                    $('#simulation-content').removeClass('d-none');
-                    
-                    // Update simulation plot
-                    $('#simulation-plot').attr('src', 'data:image/png;base64,' + data.plot);
-                    
-                    // Update status
-                    updateStatus(data.state);
-                    
-                    // Check if done
-                    if (data.done) {
-                        simulationActive = false;
-                        simulationComplete = true;
-                        
-                        // Disable step and run buttons
-                        $('#step-btn').prop('disabled', true);
-                        $('#run-btn').prop('disabled', true);
-                        
-                        // Run the algorithm to get final metrics
-                        runAlgorithm();
+    // Constants
+    const WORLD_SIZE = [{{ world_size[0] }}, {{ world_size[1] }}];
+    const NUM_USERS = {{ num_users }};
+    
+    // Canvas and Chart setup
+    let trajectoryCtx = document.getElementById('trajectory-canvas').getContext('2d');
+    let energyCtx = document.getElementById('energy-canvas').getContext('2d');
+    
+    let trajectoryCanvas = document.getElementById('trajectory-canvas');
+    trajectoryCanvas.width = trajectoryCanvas.parentNode.clientWidth;
+    trajectoryCanvas.height = 500;
+    
+    let energyChart = new Chart(energyCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Energy (Joules)',
+                data: [],
+                borderColor: 'rgba(75, 192, 192, 1)',
+                tension: 0.1,
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Energy (J)'
                     }
                 },
-                error: function(error) {
-                    console.error('Error stepping algorithm:', error);
-                    
-                    // Hide loading indicator
-                    $('#loading-indicator').addClass('d-none');
-                    $('#simulation-content').removeClass('d-none');
-                    
-                    // Show error alert
-                    alert('Error stepping algorithm. Please try again.');
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Time Steps'
+                    }
                 }
-            });
-        });
+            }
+        }
+    });
+    
+    // Draw functions
+    function drawTrajectory(trajectory, users, uavPosition) {
+        const ctx = trajectoryCtx;
+        const canvas = trajectoryCanvas;
+        const width = canvas.width;
+        const height = canvas.height;
         
-        // Run button
-        $('#run-btn').click(function() {
-            if (!simulationActive) return;
-            
-            // Run the algorithm
-            runAlgorithm();
-        });
+        // Clear canvas
+        ctx.clearRect(0, 0, width, height);
         
-        // Back button
-        $('#back-btn').click(function() {
-            // Hide results and show simulation
-            $('#results-container').addClass('d-none');
-            $('#simulation-content').removeClass('d-none');
-            $('#back-btn').addClass('d-none');
-        });
+        // Scale factors
+        const scaleX = width / WORLD_SIZE[0];
+        const scaleY = height / WORLD_SIZE[1];
         
-        // Function to run algorithm to completion
-        function runAlgorithm() {
-            // Show loading indicator
-            $('#loading-indicator').removeClass('d-none');
-            $('#simulation-content').addClass('d-none');
-            
-            // Run algorithm
-            $.ajax({
-                url: '/api/run/' + currentAlgorithm,
-                method: 'POST',
-                success: function(data) {
-                    // Hide loading indicator
-                    $('#loading-indicator').addClass('d-none');
-                    
-                    // Update plots
-                    $('#trajectory-plot').attr('src', 'data:image/png;base64,' + data.trajectory_plot);
-                    $('#energy-plot').attr('src', 'data:image/png;base64,' + data.energy_plot);
-                    
-                    // Update metrics table
-                    updateMetricsTable(data.metrics);
-                    
-                    // Show results
-                    $('#results-container').removeClass('d-none');
-                    $('#back-btn').removeClass('d-none');
-                    
-                    // Set simulation complete
-                    simulationActive = false;
-                    simulationComplete = true;
-                    
-                    // Disable step and run buttons
-                    $('#step-btn').prop('disabled', true);
-                    $('#run-btn').prop('disabled', true);
-                },
-                error: function(error) {
-                    console.error('Error running algorithm:', error);
-                    
-                    // Hide loading indicator
-                    $('#loading-indicator').addClass('d-none');
-                    $('#simulation-content').removeClass('d-none');
-                    
-                    // Show error alert
-                    alert('Error running algorithm. Please try again.');
-                }
-            });
+        // Transform real-world coordinates to canvas coordinates
+        function transformX(x) {
+            return x * scaleX;
         }
         
-        // Function to update status
-        function updateStatus(state) {
-            $('#current-step').text(state.current_step || 0);
-            $('#max-steps').text(3000);  // Default max steps
-            $('#uav-energy').text((state.uav_energy || 0).toFixed(2));
-            $('#tasks-serviced').text(state.serviced_tasks || 0);
-            $('#data-processed').text((state.data_processed || 0).toFixed(2));
-            $('#flight-distance').text((state.total_flight_distance || 0).toFixed(2));
+        function transformY(y) {
+            return height - y * scaleY;
         }
         
-        // Function to update metrics table
-        function updateMetricsTable(metrics) {
-            const tableBody = $('#metrics-table-body');
-            tableBody.empty();
+        // Draw world boundary
+        ctx.strokeStyle = 'rgba(150, 150, 150, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(0, 0, width, height);
+        
+        // Draw grid
+        const gridSize = 100;
+        ctx.strokeStyle = 'rgba(100, 100, 100, 0.2)';
+        ctx.lineWidth = 0.5;
+        
+        for (let x = 0; x <= WORLD_SIZE[0]; x += gridSize) {
+            ctx.beginPath();
+            ctx.moveTo(transformX(x), 0);
+            ctx.lineTo(transformX(x), height);
+            ctx.stroke();
+        }
+        
+        for (let y = 0; y <= WORLD_SIZE[1]; y += gridSize) {
+            ctx.beginPath();
+            ctx.moveTo(0, transformY(y));
+            ctx.lineTo(width, transformY(y));
+            ctx.stroke();
+        }
+        
+        // Draw trajectory
+        if (trajectory && trajectory.length > 0) {
+            ctx.strokeStyle = 'rgba(0, 123, 255, 0.7)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(transformX(trajectory[0][0]), transformY(trajectory[0][1]));
             
-            // Define metrics descriptions
-            const descriptions = {
-                'algorithm': 'The algorithm used for path planning',
-                'serviced_tasks': 'Number of user tasks successfully serviced',
-                'data_processed': 'Amount of data processed (in MB)',
-                'total_flight_distance': 'Total distance traveled by the UAV (in m)',
-                'energy_consumed': 'Total energy consumed by the UAV (in J)',
-                'energy_efficiency': 'Data processed per unit of energy (in bits/J)',
-                'avg_task_delay': 'Average delay between task arrival and service (in s)',
-                'steps': 'Number of simulation steps'
-            };
+            for (let i = 1; i < trajectory.length; i++) {
+                ctx.lineTo(transformX(trajectory[i][0]), transformY(trajectory[i][1]));
+            }
             
-            // Add rows for each metric
-            for (const [key, value] of Object.entries(metrics)) {
-                if (key === 'trajectory' || key === 'energy_log' || key === 'stats_log') continue;
-                
-                const row = $('<tr>');
-                const formattedValue = typeof value === 'number' ? value.toFixed(2) : value;
-                
-                row.append($('<td>').text(key));
-                row.append($('<td>').text(formattedValue));
-                row.append($('<td>').text(descriptions[key] || ''));
-                
-                tableBody.append(row);
+            ctx.stroke();
+            
+            // Draw points on trajectory
+            ctx.fillStyle = 'rgba(0, 123, 255, 0.5)';
+            for (let i = 0; i < trajectory.length; i++) {
+                ctx.beginPath();
+                ctx.arc(transformX(trajectory[i][0]), transformY(trajectory[i][1]), 3, 0, Math.PI * 2);
+                ctx.fill();
             }
         }
         
-        // Check URL parameters for algorithm selection
-        const urlParams = new URLSearchParams(window.location.search);
-        const algorithmParam = urlParams.get('algorithm');
-        
-        if (algorithmParam) {
-            $('#algorithm-select').val(algorithmParam);
-            currentAlgorithm = algorithmParam;
+        // Draw users
+        if (users) {
+            Object.keys(users).forEach(userId => {
+                const user = users[userId];
+                const position = user.position;
+                const hasTask = user.has_task;
+                
+                ctx.fillStyle = hasTask ? 'rgba(255, 0, 0, 0.7)' : 'rgba(0, 200, 0, 0.7)';
+                ctx.beginPath();
+                ctx.arc(transformX(position[0]), transformY(position[1]), 8, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw user ID
+                ctx.fillStyle = 'white';
+                ctx.font = '10px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(userId.toString(), transformX(position[0]), transformY(position[1]));
+            });
         }
+        
+        // Draw UAV
+        if (uavPosition) {
+            ctx.fillStyle = 'rgba(255, 165, 0, 0.9)';
+            ctx.beginPath();
+            ctx.arc(transformX(uavPosition[0]), transformY(uavPosition[1]), 10, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw UAV symbol
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(transformX(uavPosition[0]), transformY(uavPosition[1]) - 5);
+            ctx.lineTo(transformX(uavPosition[0]) - 5, transformY(uavPosition[1]) + 5);
+            ctx.lineTo(transformX(uavPosition[0]) + 5, transformY(uavPosition[1]) + 5);
+            ctx.closePath();
+            ctx.stroke();
+        }
+    }
+    
+    function updateEnergyChart(energyLog) {
+        if (!energyLog || energyLog.length === 0) {
+            return;
+        }
+        
+        const labels = Array.from({ length: energyLog.length }, (_, i) => i);
+        
+        energyChart.data.labels = labels;
+        energyChart.data.datasets[0].data = energyLog;
+        energyChart.update();
+    }
+    
+    function updateMetrics(metrics) {
+        document.getElementById('serviced-tasks').textContent = metrics.serviced_tasks || 0;
+        document.getElementById('data-processed').textContent = `${(metrics.data_processed || 0).toFixed(2)} MB`;
+        document.getElementById('energy-consumed').textContent = `${(metrics.energy_consumed || 0).toFixed(2)} J`;
+        document.getElementById('total-distance').textContent = `${(metrics.total_distance || 0).toFixed(2)} m`;
+        document.getElementById('remaining-energy').textContent = `${(metrics.remaining_energy || 0).toFixed(2)} J`;
+    }
+    
+    // Event Listeners
+    document.getElementById('reset-btn').addEventListener('click', function() {
+        fetch('/api/reset', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Clear graphs
+                trajectoryCtx.clearRect(0, 0, trajectoryCanvas.width, trajectoryCanvas.height);
+                energyChart.data.labels = [];
+                energyChart.data.datasets[0].data = [];
+                energyChart.update();
+                
+                // Reset metrics
+                updateMetrics({
+                    serviced_tasks: 0,
+                    data_processed: 0,
+                    energy_consumed: 0,
+                    total_distance: 0,
+                    remaining_energy: 10000
+                });
+                
+                // Draw empty world
+                drawTrajectory([], {}, [500, 500]);
+            }
+        })
+        .catch(error => console.error('Error resetting simulation:', error));
     });
+    
+    document.getElementById('run-btn').addEventListener('click', function() {
+        const algorithm = document.getElementById('algorithm').value;
+        const maxSteps = parseInt(document.getElementById('max-steps').value);
+        
+        // Show status
+        const statusEl = document.getElementById('simulation-status');
+        statusEl.textContent = `Running simulation with ${algorithm.toUpperCase()} algorithm...`;
+        statusEl.classList.remove('d-none');
+        
+        // Disable run button
+        this.disabled = true;
+        
+        fetch('/api/run', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                algorithm: algorithm,
+                max_steps: maxSteps
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const metrics = data.metrics;
+                
+                // Update trajectory visualization
+                drawTrajectory(
+                    metrics.trajectory, 
+                    metrics.stats_log[metrics.stats_log.length - 1].users,
+                    metrics.trajectory[metrics.trajectory.length - 1]
+                );
+                
+                // Update energy chart
+                updateEnergyChart(metrics.energy_log);
+                
+                // Update metrics display
+                updateMetrics({
+                    serviced_tasks: metrics.serviced_tasks,
+                    data_processed: metrics.data_processed,
+                    energy_consumed: metrics.energy_consumed,
+                    total_distance: metrics.total_distance,
+                    remaining_energy: metrics.remaining_energy
+                });
+                
+                // Update status
+                statusEl.textContent = `Simulation completed. Results saved as ${data.filename}.`;
+                statusEl.classList.remove('alert-info');
+                statusEl.classList.add('alert-success');
+            } else {
+                statusEl.textContent = `Error: ${data.message}`;
+                statusEl.classList.remove('alert-info');
+                statusEl.classList.add('alert-danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error running simulation:', error);
+            statusEl.textContent = `Error running simulation: ${error.message}`;
+            statusEl.classList.remove('alert-info');
+            statusEl.classList.add('alert-danger');
+        })
+        .finally(() => {
+            // Re-enable run button
+            this.disabled = false;
+        });
+    });
+    
+    // Initial draw
+    drawTrajectory([], {}, [500, 500]);
 </script>
 {% endblock %}

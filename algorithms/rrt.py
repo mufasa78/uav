@@ -2,18 +2,18 @@
 Rapidly-exploring Random Tree (RRT) implementation for UAV path planning.
 """
 
-import math
 import random
-import numpy as np
+import math
 from typing import Dict, List, Tuple, Any, Optional
+
+# Removed numpy dependency
 
 from algorithms.base import PathPlanningAlgorithm
 from utils.config import (
     RRT_MAX_ITERATIONS,
     RRT_STEP_SIZE,
     RRT_GOAL_SAMPLE_RATE,
-    RRT_CONNECT_CIRCLE_DISTANCE,
-    COMM_RANGE
+    RRT_CONNECT_CIRCLE_DISTANCE
 )
 
 class RRTNode:
@@ -29,8 +29,8 @@ class RRTNode:
             position: Position of the node (x, y)
         """
         self.position = position
-        self.parent = None
-        self.cost = 0.0  # Cost from the start node
+        self.parent: Optional['RRTNode'] = None
+        self.cost = 0.0  # Cost from start to this node
 
 class RRTAlgorithm(PathPlanningAlgorithm):
     """
@@ -53,17 +53,21 @@ class RRTAlgorithm(PathPlanningAlgorithm):
             goal_sample_rate: Probability of sampling the goal position
             connect_circle_distance: Maximum distance to connect two nodes
         """
-        super().__init__(name="Rapidly-exploring Random Tree")
+        super().__init__("RRT")
         self.max_iterations = max_iterations
         self.step_size = step_size
         self.goal_sample_rate = goal_sample_rate
         self.connect_circle_distance = connect_circle_distance
         
-        # Tree structure
+        # Additional attributes
         self.nodes = []
         self.path = []
-        self.target_position = None
-        self.current_user_id = None
+        self.goal_node = None
+        self.nearest_node_to_goal = None
+        self.current_path_index = 0
+        self.current_goal_index = 0
+        self.goals = []
+        self.planning_in_progress = False
     
     def setup(self, env) -> None:
         """
@@ -73,7 +77,16 @@ class RRTAlgorithm(PathPlanningAlgorithm):
             env: Simulation environment
         """
         super().setup(env)
-        self.world_size = (1000, 1000)  # Default world size
+        
+        # Reset the tree
+        self.nodes = []
+        self.path = []
+        self.goal_node = None
+        self.nearest_node_to_goal = None
+        self.current_path_index = 0
+        self.current_goal_index = 0
+        self.goals = []
+        self.planning_in_progress = False
     
     def compute_action(self, state: Dict[str, Any]) -> Tuple[Optional[Tuple[float, float]], Optional[int]]:
         """
@@ -85,70 +98,70 @@ class RRTAlgorithm(PathPlanningAlgorithm):
         Returns:
             Tuple of (target_position, user_id_to_service)
         """
-        # Get the current UAV position
+        # Get current UAV position
         uav_position = state.get('uav_position', (0, 0))
         
-        # Get users with tasks
-        users_with_tasks = state.get('users_with_tasks', [])
-        all_users = state.get('all_users', [])
+        # Check if we need to plan a new path
+        users_with_tasks = []
+        for user_id, user in state.get('users', {}).items():
+            if user.get('has_task', False):
+                users_with_tasks.append((user_id, user.get('position', (0, 0))))
         
-        # Check if there's a user in communication range to service
-        for user_id in users_with_tasks:
-            if user_id < len(all_users):
-                user_position = all_users[user_id][1]
-                
-                # Calculate distance to user
-                distance = math.sqrt(
-                    (user_position[0] - uav_position[0]) ** 2 + 
-                    (user_position[1] - uav_position[1]) ** 2
-                )
-                
-                if distance <= COMM_RANGE:
-                    # If a user is in range, service them
-                    return (user_position, user_id)
+        # Sort users by distance to UAV
+        users_with_tasks.sort(key=lambda u: math.sqrt((u[1][0] - uav_position[0]) ** 2 + (u[1][1] - uav_position[1]) ** 2))
         
-        # If we have a path to follow, continue following it
-        if self.path and len(self.path) > 1:
-            next_position = self.path.pop(0)
-            return (next_position, None)
-        
-        # Otherwise, plan a new path to a user
-        closest_user_id = None
-        closest_distance = float('inf')
-        closest_position = None
-        
-        for user_id in users_with_tasks:
-            if user_id < len(all_users):
-                user_position = all_users[user_id][1]
-                
-                # Calculate distance to user
-                distance = math.sqrt(
-                    (user_position[0] - uav_position[0]) ** 2 + 
-                    (user_position[1] - uav_position[1]) ** 2
-                )
-                
-                if distance < closest_distance:
-                    closest_distance = distance
-                    closest_user_id = user_id
-                    closest_position = user_position
-        
-        # If found a user, plan a path to them
-        if closest_position:
-            self.plan_path(uav_position, closest_position)
+        # If there are users with tasks and we're not currently servicing or planning
+        if users_with_tasks and not state.get('current_service_user_id') and not self.planning_in_progress:
+            # Get the closest user with a task
+            user_id, goal = users_with_tasks[0]
             
-            # If a path is found, return the first waypoint
-            if self.path and len(self.path) > 0:
-                next_position = self.path.pop(0)
-                return (next_position, None)
+            # Plan a path to this user
+            self.plan_path(uav_position, goal)
+            
+            # Set the goals to first reach the user, then service
+            self.goals = [(goal, None), (None, user_id)]
+            self.current_goal_index = 0
+            
+            # Mark planning as in progress
+            self.planning_in_progress = True
         
-        # If no path is found or no users, stay in place or explore randomly
-        if not users_with_tasks:
-            # Random exploration
-            random_x = random.uniform(0, self.world_size[0])
-            random_y = random.uniform(0, self.world_size[1])
-            return ((random_x, random_y), None)
+        # If we have a path, follow it
+        if self.path and self.current_path_index < len(self.path):
+            # Get the next waypoint
+            next_position = self.path[self.current_path_index]
+            
+            # Check if we reached the waypoint
+            distance = math.sqrt((next_position[0] - uav_position[0]) ** 2 + (next_position[1] - uav_position[1]) ** 2)
+            if distance < self.connect_circle_distance:
+                # Move to next waypoint
+                self.current_path_index += 1
+                
+                # If we reached the end of the path, reset
+                if self.current_path_index >= len(self.path):
+                    # Move to next goal
+                    self.current_goal_index += 1
+                    
+                    # If we have more goals, plan a path to the next goal
+                    if self.current_goal_index < len(self.goals) and self.goals[self.current_goal_index][0] is not None:
+                        self.plan_path(uav_position, self.goals[self.current_goal_index][0])
+                        self.current_path_index = 0
+                    else:
+                        # Reset planning if we have no more goals
+                        self.planning_in_progress = False
+                        
+                        # Return the service action if needed
+                        if self.current_goal_index < len(self.goals) and self.goals[self.current_goal_index][1] is not None:
+                            return (None, self.goals[self.current_goal_index][1])
+                        
+                        # Reset goals
+                        self.goals = []
+                        self.current_goal_index = 0
+            
+            # Return the next position to follow the path
+            if self.current_path_index < len(self.path):
+                return (self.path[self.current_path_index], None)
         
-        # Default: no movement, no service
+        # Default behavior - stay in place
         return (None, None)
     
     def plan_path(self, start: Tuple[float, float], goal: Tuple[float, float]) -> None:
@@ -167,46 +180,91 @@ class RRTAlgorithm(PathPlanningAlgorithm):
         start_node = RRTNode(start)
         self.nodes.append(start_node)
         
-        # RRT algorithm
-        for _ in range(self.max_iterations):
-            # Sample a random position (with bias towards the goal)
+        # Create goal node
+        self.goal_node = RRTNode(goal)
+        
+        # Initialize nearest node to goal
+        self.nearest_node_to_goal = start_node
+        nearest_dist = float('inf')
+        
+        # Build the tree
+        for i in range(self.max_iterations):
+            # Sample a random point
             if random.random() < self.goal_sample_rate:
-                random_position = goal
+                # Sample the goal directly
+                random_point = goal
             else:
-                random_x = random.uniform(0, self.world_size[0])
-                random_y = random.uniform(0, self.world_size[1])
-                random_position = (random_x, random_y)
+                # Sample a random point in the world
+                world_size = (1000, 1000)
+                if self.env:
+                    state = self.env.get_state()
+                    if state:
+                        world_size = state.get('world_size', (1000, 1000))
+                random_point = (
+                    random.uniform(0, world_size[0]),
+                    random.uniform(0, world_size[1])
+                )
             
             # Find the nearest node
-            nearest_node_idx = self._get_nearest_node_idx(np.array(random_position))
-            nearest_node = self.nodes[nearest_node_idx]
+            nearest_idx = self._get_nearest_node_idx(random_point)
+            nearest_node = self.nodes[nearest_idx]
             
-            # Steer towards the random position
-            new_node = self._steer(nearest_node, np.array(random_position))
+            # Steer towards the random point
+            new_node = self._steer(nearest_node, random_point)
             
-            # Add the new node to the tree
-            new_node.parent = nearest_node_idx
-            new_node.cost = nearest_node.cost + self.step_size  # Simple cost function
-            self.nodes.append(new_node)
-            
-            # Check if we're close enough to the goal
-            dist_to_goal = math.sqrt(
-                (new_node.position[0] - goal[0]) ** 2 + 
-                (new_node.position[1] - goal[1]) ** 2
-            )
-            
-            if dist_to_goal <= self.connect_circle_distance:
-                # Create a goal node
-                goal_node = RRTNode(goal)
-                goal_node.parent = len(self.nodes) - 1  # Parent is the new node
-                goal_node.cost = new_node.cost + dist_to_goal
-                self.nodes.append(goal_node)
+            # Check for collision - simplified, just check distance from obstacles
+            has_collision = False
+            obstacles = []
+            if self.env:
+                state = self.env.get_state()
+                if state:
+                    obstacles = state.get('obstacles', [])
+            for obstacle in obstacles:
+                obstacle_pos = obstacle.get('position', (0, 0))
+                obstacle_radius = obstacle.get('radius', 0)
                 
-                # Extract the path
-                self.path = self._extract_path(goal_node)
-                break
+                # Calculate distance to obstacle
+                distance = math.sqrt((new_node.position[0] - obstacle_pos[0]) ** 2 + (new_node.position[1] - obstacle_pos[1]) ** 2)
+                
+                # Check if collision
+                if distance < obstacle_radius + 5.0:  # Add some buffer
+                    has_collision = True
+                    break
+            
+            # Add the node if no collision
+            if not has_collision:
+                new_node.parent = nearest_node
+                new_node.cost = nearest_node.cost + math.sqrt(
+                    (new_node.position[0] - nearest_node.position[0]) ** 2 + 
+                    (new_node.position[1] - nearest_node.position[1]) ** 2
+                )
+                self.nodes.append(new_node)
+                
+                # Check if this node is closer to the goal
+                dist_to_goal = math.sqrt(
+                    (new_node.position[0] - goal[0]) ** 2 + 
+                    (new_node.position[1] - goal[1]) ** 2
+                )
+                
+                if dist_to_goal < nearest_dist:
+                    nearest_dist = dist_to_goal
+                    self.nearest_node_to_goal = new_node
+                
+                # Check if the goal is reached
+                if dist_to_goal <= self.connect_circle_distance:
+                    # Connect to goal
+                    goal_node = RRTNode(goal)
+                    goal_node.parent = new_node
+                    goal_node.cost = new_node.cost + dist_to_goal
+                    self.nodes.append(goal_node)
+                    self.nearest_node_to_goal = goal_node
+                    break
+        
+        # Extract the path
+        self.path = self._extract_path(self.nearest_node_to_goal)
+        self.current_path_index = 0
     
-    def _get_nearest_node_idx(self, position: np.ndarray) -> int:
+    def _get_nearest_node_idx(self, position: Tuple[float, float]) -> int:
         """
         Find the index of the nearest node to the given position.
         
@@ -216,15 +274,13 @@ class RRTAlgorithm(PathPlanningAlgorithm):
         Returns:
             Index of the nearest node
         """
-        distances = []
-        for node in self.nodes:
-            node_pos = np.array(node.position)
-            distance = np.linalg.norm(node_pos - position)
-            distances.append(distance)
-        
-        return np.argmin(distances)
+        dists = [
+            math.sqrt((node.position[0] - position[0]) ** 2 + (node.position[1] - position[1]) ** 2)
+            for node in self.nodes
+        ]
+        return dists.index(min(dists))
     
-    def _steer(self, from_node: RRTNode, to_position: np.ndarray) -> RRTNode:
+    def _steer(self, from_node: RRTNode, to_position: Tuple[float, float]) -> RRTNode:
         """
         Create a new node by steering from a node towards a position.
         
@@ -235,24 +291,28 @@ class RRTAlgorithm(PathPlanningAlgorithm):
         Returns:
             New node
         """
-        from_position = np.array(from_node.position)
-        direction = to_position - from_position
-        dist = np.linalg.norm(direction)
+        # Get direction
+        dir_x = to_position[0] - from_node.position[0]
+        dir_y = to_position[1] - from_node.position[1]
         
-        # If distance is less than step size, go directly to the position
-        if dist <= self.step_size:
-            new_position = to_position
+        # Get distance
+        dist = math.sqrt(dir_x ** 2 + dir_y ** 2)
+        
+        # Normalize direction
+        if dist > 0:
+            dir_x /= dist
+            dir_y /= dist
+        
+        # Get new position
+        if dist > self.step_size:
+            new_x = from_node.position[0] + dir_x * self.step_size
+            new_y = from_node.position[1] + dir_y * self.step_size
         else:
-            # Otherwise, move in the direction with step size
-            direction = direction / dist * self.step_size
-            new_position = from_position + direction
+            new_x = to_position[0]
+            new_y = to_position[1]
         
-        # Ensure position is within bounds
-        new_position[0] = max(0, min(self.world_size[0], new_position[0]))
-        new_position[1] = max(0, min(self.world_size[1], new_position[1]))
-        
-        # Create a new node
-        new_node = RRTNode((new_position[0], new_position[1]))
+        # Create new node
+        new_node = RRTNode((new_x, new_y))
         
         return new_node
     
@@ -266,15 +326,18 @@ class RRTAlgorithm(PathPlanningAlgorithm):
         Returns:
             List of waypoints
         """
-        path = [end_node.position]
-        current_node = end_node
+        path = []
+        current = end_node
         
-        # Traverse the tree backwards from the end node to the start node
-        while current_node.parent is not None:
-            current_node = self.nodes[current_node.parent]
-            path.append(current_node.position)
+        # Traverse from end node to start node
+        while current.parent is not None:
+            path.append(current.position)
+            current = current.parent
         
-        # Reverse the path to get it from start to end
+        # Add start node
+        path.append(current.position)
+        
+        # Reverse to get path from start to end
         path.reverse()
         
         return path

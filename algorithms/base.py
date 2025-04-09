@@ -53,34 +53,37 @@ class PathPlanningAlgorithm(ABC):
         Returns:
             Dictionary with the metrics of the episode
         """
-        if self.env is None:
+        if not self.env:
             raise ValueError("Environment not set up. Call setup() first.")
         
         # Reset the environment
         self.env.reset()
         
-        # Run the episode
-        for _ in range(max_steps):
+        # Run episode
+        step = 0
+        while not self.env.is_done() and step < max_steps:
+            # Get current state
             state = self.env.get_state()
             
             # Compute action
             target_position, user_id = self.compute_action(state)
             
-            # Set service user if needed
+            # Set service user if specified
             if user_id is not None:
                 self.env.set_service_user(user_id)
             
-            # Take a step
+            # Step environment
             self.env.step(target_position)
             
-            # Check if done
-            if self.env.is_done():
-                break
+            step += 1
         
-        # Get final metrics
+        # Get metrics
         metrics = self.env.get_metrics()
+        
+        # Add algorithm name
         metrics['algorithm'] = self.name
-        metrics['steps'] = self.env.current_step
+        
+        # Add episode data
         metrics['trajectory'] = self.env.get_trajectory()
         metrics['energy_log'] = self.env.get_energy_log()
         metrics['stats_log'] = self.env.get_stats_log()

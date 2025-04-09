@@ -1,389 +1,151 @@
 {% extends "layout.html" %}
+{% block title %}Documentation - UAV Path Planning{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="row">
-        <div class="col-lg-12">
-            <div class="card">
-                <div class="card-header">
-                    <h4 class="mb-0">UAV Path Planning Simulation - Documentation</h4>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-3">
-                            <div class="nav flex-column nav-pills me-3" id="v-pills-tab" role="tablist">
-                                <button class="nav-link active" id="v-pills-overview-tab" data-bs-toggle="pill" data-bs-target="#v-pills-overview" type="button" role="tab">Overview</button>
-                                <button class="nav-link" id="v-pills-algorithms-tab" data-bs-toggle="pill" data-bs-target="#v-pills-algorithms" type="button" role="tab">Algorithms</button>
-                                <button class="nav-link" id="v-pills-simulation-tab" data-bs-toggle="pill" data-bs-target="#v-pills-simulation" type="button" role="tab">Simulation</button>
-                                <button class="nav-link" id="v-pills-api-tab" data-bs-toggle="pill" data-bs-target="#v-pills-api" type="button" role="tab">API Reference</button>
-                                <button class="nav-link" id="v-pills-parameters-tab" data-bs-toggle="pill" data-bs-target="#v-pills-parameters" type="button" role="tab">Parameters</button>
-                                <button class="nav-link" id="v-pills-metrics-tab" data-bs-toggle="pill" data-bs-target="#v-pills-metrics" type="button" role="tab">Metrics</button>
-                            </div>
-                        </div>
-                        <div class="col-md-9">
-                            <div class="tab-content" id="v-pills-tabContent">
-                                <!-- Overview Tab -->
-                                <div class="tab-pane fade show active" id="v-pills-overview" role="tabpanel">
-                                    <h4>Project Overview</h4>
-                                    <p>This simulation framework provides a platform for comparing different UAV path planning algorithms in a simulated environment. The system models a UAV (drone) providing services to ground users in a defined area.</p>
-                                    
-                                    <h5>Key Features</h5>
-                                    <ul>
-                                        <li>Implementation of multiple path planning algorithms (MCTS, RRT)</li>
-                                        <li>Realistic UAV energy consumption modeling</li>
-                                        <li>User mobility and task generation</li>
-                                        <li>Comprehensive metrics for algorithm comparison</li>
-                                        <li>Visualization of trajectories and performance metrics</li>
-                                    </ul>
-                                    
-                                    <h5>Project Structure</h5>
-                                    <div class="card bg-dark-subtle">
-                                        <div class="card-body">
-                                            <pre>
-├── algorithms/           # Path planning algorithm implementations
-├── simulation/           # Simulation environment components
-├── utils/                # Utility functions and configuration
-├── visualization/        # Plotting and visualization tools
-└── web/                  # Web interface components
-</pre>
-                                        </div>
-                                    </div>
-                                </div>
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">UAV Path Planning Documentation</h5>
+            </div>
+            <div class="card-body">
+                <h2>Overview</h2>
+                <p>
+                    This project implements and compares different path planning algorithms for Unmanned Aerial Vehicles (UAVs).
+                    The simulation environment includes users with data requests, and the UAV needs to efficiently service these
+                    requests while managing its energy consumption.
+                </p>
+                
+                <h2>Algorithms</h2>
+                <h3>Monte Carlo Tree Search (MCTS)</h3>
+                <div class="row mb-4">
+                    <div class="col-md-8">
+                        <p>
+                            MCTS is a heuristic search algorithm that uses random sampling to build a search tree and evaluate 
+                            decisions. It is particularly effective for problems with large state spaces where traditional search 
+                            methods are impractical.
+                        </p>
+                        <h4>MCTS Process:</h4>
+                        <ol>
+                            <li><strong>Selection:</strong> Starting from the root, traverse the tree by selecting nodes with the highest UCT value until a leaf node is reached.</li>
+                            <li><strong>Expansion:</strong> Add a new child node to the selected leaf node.</li>
+                            <li><strong>Simulation:</strong> Perform a random rollout from the new node to estimate its value.</li>
+                            <li><strong>Backpropagation:</strong> Update the value and visit count of all nodes along the path from the new node to the root.</li>
+                        </ol>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5>Advantages:</h5>
+                                <ul>
+                                    <li>Handles large state spaces</li>
+                                    <li>Balances exploration and exploitation</li>
+                                    <li>Anytime algorithm - can return a result at any time</li>
+                                </ul>
                                 
-                                <!-- Algorithms Tab -->
-                                <div class="tab-pane fade" id="v-pills-algorithms" role="tabpanel">
-                                    <h4>Path Planning Algorithms</h4>
-                                    <p>The simulation includes two state-of-the-art path planning algorithms:</p>
-                                    
-                                    <div class="card mb-4 bg-dark-subtle">
-                                        <div class="card-header">
-                                            <h5>Monte Carlo Tree Search (MCTS)</h5>
-                                        </div>
-                                        <div class="card-body">
-                                            <p>MCTS is a heuristic search algorithm that combines tree search with random sampling to evaluate possible moves and find optimal decisions. It balances exploration and exploitation through the Upper Confidence Bound applied to Trees (UCT) formula.</p>
-                                            
-                                            <h6>Key Components:</h6>
-                                            <ol>
-                                                <li><strong>Selection:</strong> Starting from the root, select successive child nodes according to the UCT formula</li>
-                                                <li><strong>Expansion:</strong> When a node with unexplored children is reached, add one of these children to the tree</li>
-                                                <li><strong>Simulation:</strong> Perform a random simulation from the new node to a terminal state</li>
-                                                <li><strong>Backpropagation:</strong> Update the node values based on the simulation result</li>
-                                            </ol>
-                                            
-                                            <h6>Configuration Parameters:</h6>
-                                            <ul>
-                                                <li><code>MCTS_ITERATIONS</code>: Number of iterations for each action computation (default: 100)</li>
-                                                <li><code>MCTS_EXPLORATION_WEIGHT</code>: Weight for exploration term in UCT (default: 1.0)</li>
-                                                <li><code>MCTS_ROLLOUT_DEPTH</code>: Maximum depth for rollout simulation (default: 20)</li>
-                                                <li><code>MCTS_MAX_DEPTH</code>: Maximum depth of the tree (default: 100)</li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="card bg-dark-subtle">
-                                        <div class="card-header">
-                                            <h5>Rapidly-exploring Random Tree (RRT)</h5>
-                                        </div>
-                                        <div class="card-body">
-                                            <p>RRT is a randomized algorithm designed to efficiently search high-dimensional spaces by incrementally building a space-filling tree. It grows by randomly sampling points and connecting them to the nearest node in the tree.</p>
-                                            
-                                            <h6>Key Components:</h6>
-                                            <ol>
-                                                <li><strong>Initialization:</strong> Create a tree with the start position</li>
-                                                <li><strong>Sampling:</strong> Randomly sample a point in the space (with bias toward the goal)</li>
-                                                <li><strong>Extension:</strong> Find the nearest node and extend the tree toward the sampled point</li>
-                                                <li><strong>Goal checking:</strong> Check if the new node is close enough to the goal</li>
-                                            </ol>
-                                            
-                                            <h6>Configuration Parameters:</h6>
-                                            <ul>
-                                                <li><code>RRT_MAX_ITERATIONS</code>: Maximum number of iterations for RRT (default: 1000)</li>
-                                                <li><code>RRT_STEP_SIZE</code>: Step size for extending the tree (default: 10.0)</li>
-                                                <li><code>RRT_GOAL_SAMPLE_RATE</code>: Probability of sampling the goal position (default: 0.1)</li>
-                                                <li><code>RRT_CONNECT_CIRCLE_DISTANCE</code>: Distance threshold to connect nodes (default: 20.0)</li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Simulation Tab -->
-                                <div class="tab-pane fade" id="v-pills-simulation" role="tabpanel">
-                                    <h4>Simulation Environment</h4>
-                                    <p>The simulation environment models a UAV providing services to ground users in a 2D world. The environment handles UAV movement, user mobility, and task generation.</p>
-                                    
-                                    <h5>UAV Model</h5>
-                                    <p>The UAV is modeled with the following characteristics:</p>
-                                    <ul>
-                                        <li>Position in 2D space (x, y)</li>
-                                        <li>Energy consumption based on movement and service</li>
-                                        <li>Limited communication range</li>
-                                        <li>Constant speed</li>
-                                    </ul>
-                                    
-                                    <h5>User Model</h5>
-                                    <p>Ground users are modeled with the following characteristics:</p>
-                                    <ul>
-                                        <li>Position in 2D space (x, y)</li>
-                                        <li>Random mobility (random waypoint model)</li>
-                                        <li>Task generation based on a Poisson process</li>
-                                        <li>Data size for each task</li>
-                                    </ul>
-                                    
-                                    <h5>Simulation Flow</h5>
-                                    <ol>
-                                        <li>Environment initialization (users, UAV, tasks)</li>
-                                        <li>For each time step:
-                                            <ul>
-                                                <li>Get current state</li>
-                                                <li>Compute action using the selected algorithm</li>
-                                                <li>Update UAV position</li>
-                                                <li>Update user positions</li>
-                                                <li>Check service completion</li>
-                                                <li>Generate new tasks</li>
-                                                <li>Log state and metrics</li>
-                                            </ul>
-                                        </li>
-                                        <li>Calculate final metrics</li>
-                                    </ol>
-                                </div>
-                                
-                                <!-- API Reference Tab -->
-                                <div class="tab-pane fade" id="v-pills-api" role="tabpanel">
-                                    <h4>API Reference</h4>
-                                    <p>The web interface provides the following API endpoints:</p>
-                                    
-                                    <div class="table-responsive">
-                                        <table class="table table-bordered table-striped">
-                                            <thead class="table-dark">
-                                                <tr>
-                                                    <th>Endpoint</th>
-                                                    <th>Method</th>
-                                                    <th>Description</th>
-                                                    <th>Parameters</th>
-                                                    <th>Response</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <tr>
-                                                    <td><code>/api/initialize/&lt;algorithm&gt;</code></td>
-                                                    <td>POST</td>
-                                                    <td>Initialize an algorithm</td>
-                                                    <td>algorithm: Name of the algorithm (mcts, rrt)</td>
-                                                    <td><code>{"success": true}</code></td>
-                                                </tr>
-                                                <tr>
-                                                    <td><code>/api/step/&lt;algorithm&gt;</code></td>
-                                                    <td>POST</td>
-                                                    <td>Step an algorithm</td>
-                                                    <td>algorithm: Name of the algorithm (mcts, rrt)</td>
-                                                    <td><code>{"state": {...}, "plot": "base64", "done": boolean}</code></td>
-                                                </tr>
-                                                <tr>
-                                                    <td><code>/api/run/&lt;algorithm&gt;</code></td>
-                                                    <td>POST</td>
-                                                    <td>Run an algorithm to completion</td>
-                                                    <td>algorithm: Name of the algorithm (mcts, rrt)</td>
-                                                    <td><code>{"metrics": {...}, "trajectory_plot": "base64", "energy_plot": "base64"}</code></td>
-                                                </tr>
-                                                <tr>
-                                                    <td><code>/api/compare</code></td>
-                                                    <td>POST</td>
-                                                    <td>Compare algorithms</td>
-                                                    <td>None (requires prior runs of both algorithms)</td>
-                                                    <td><code>{"trajectories_plot": "base64", "energy_plot": "base64", "metrics_plot": "base64", "metrics": {...}}</code></td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                                
-                                <!-- Parameters Tab -->
-                                <div class="tab-pane fade" id="v-pills-parameters" role="tabpanel">
-                                    <h4>Configuration Parameters</h4>
-                                    <p>The simulation can be configured using the following parameters in <code>utils/config.py</code>:</p>
-                                    
-                                    <h5>Environment Parameters</h5>
-                                    <div class="table-responsive">
-                                        <table class="table table-bordered table-striped">
-                                            <thead class="table-dark">
-                                                <tr>
-                                                    <th>Parameter</th>
-                                                    <th>Default Value</th>
-                                                    <th>Description</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <tr>
-                                                    <td><code>WORLD_SIZE</code></td>
-                                                    <td>(1000, 1000)</td>
-                                                    <td>Size of the world in meters</td>
-                                                </tr>
-                                                <tr>
-                                                    <td><code>NUM_USERS</code></td>
-                                                    <td>20</td>
-                                                    <td>Number of users in the simulation</td>
-                                                </tr>
-                                                <tr>
-                                                    <td><code>USER_DATA_RATE</code></td>
-                                                    <td>2.0</td>
-                                                    <td>Data rate of each user in Mbps</td>
-                                                </tr>
-                                                <tr>
-                                                    <td><code>USER_TASK_DURATION</code></td>
-                                                    <td>5.0</td>
-                                                    <td>Duration of each user task in seconds</td>
-                                                </tr>
-                                                <tr>
-                                                    <td><code>USER_MOBILITY_TYPE</code></td>
-                                                    <td>'random_waypoint'</td>
-                                                    <td>Mobility model for users</td>
-                                                </tr>
-                                                <tr>
-                                                    <td><code>COMM_RANGE</code></td>
-                                                    <td>100.0</td>
-                                                    <td>Communication range in meters</td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    
-                                    <h5>UAV Parameters</h5>
-                                    <div class="table-responsive">
-                                        <table class="table table-bordered table-striped">
-                                            <thead class="table-dark">
-                                                <tr>
-                                                    <th>Parameter</th>
-                                                    <th>Default Value</th>
-                                                    <th>Description</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <tr>
-                                                    <td><code>UAV_INITIAL_POSITION</code></td>
-                                                    <td>(500, 500)</td>
-                                                    <td>Initial position of the UAV in meters</td>
-                                                </tr>
-                                                <tr>
-                                                    <td><code>UAV_SPEED</code></td>
-                                                    <td>5.0</td>
-                                                    <td>Speed of the UAV in m/s</td>
-                                                </tr>
-                                                <tr>
-                                                    <td><code>UAV_INITIAL_ENERGY</code></td>
-                                                    <td>10000.0</td>
-                                                    <td>Initial energy of the UAV in Joules</td>
-                                                </tr>
-                                                <tr>
-                                                    <td><code>UAV_HOVER_POWER</code></td>
-                                                    <td>100.0</td>
-                                                    <td>Power consumption when hovering in Watts</td>
-                                                </tr>
-                                                <tr>
-                                                    <td><code>UAV_MOVE_POWER</code></td>
-                                                    <td>120.0</td>
-                                                    <td>Power consumption when moving in Watts</td>
-                                                </tr>
-                                                <tr>
-                                                    <td><code>UAV_COMM_POWER</code></td>
-                                                    <td>50.0</td>
-                                                    <td>Power consumption when communicating in Watts</td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    
-                                    <h5>Simulation Parameters</h5>
-                                    <div class="table-responsive">
-                                        <table class="table table-bordered table-striped">
-                                            <thead class="table-dark">
-                                                <tr>
-                                                    <th>Parameter</th>
-                                                    <th>Default Value</th>
-                                                    <th>Description</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <tr>
-                                                    <td><code>SIM_TIME</code></td>
-                                                    <td>300.0</td>
-                                                    <td>Simulation time in seconds</td>
-                                                </tr>
-                                                <tr>
-                                                    <td><code>TIME_STEP</code></td>
-                                                    <td>0.1</td>
-                                                    <td>Time step in seconds</td>
-                                                </tr>
-                                                <tr>
-                                                    <td><code>MAX_STEPS</code></td>
-                                                    <td>3000</td>
-                                                    <td>Maximum number of steps</td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                                
-                                <!-- Metrics Tab -->
-                                <div class="tab-pane fade" id="v-pills-metrics" role="tabpanel">
-                                    <h4>Performance Metrics</h4>
-                                    <p>The following metrics are used to evaluate and compare algorithm performance:</p>
-                                    
-                                    <div class="table-responsive">
-                                        <table class="table table-bordered table-striped">
-                                            <thead class="table-dark">
-                                                <tr>
-                                                    <th>Metric</th>
-                                                    <th>Description</th>
-                                                    <th>Optimal Value</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <tr>
-                                                    <td>Serviced Tasks</td>
-                                                    <td>Number of user tasks successfully serviced</td>
-                                                    <td>Higher is better</td>
-                                                </tr>
-                                                <tr>
-                                                    <td>Data Processed</td>
-                                                    <td>Amount of data processed in MB</td>
-                                                    <td>Higher is better</td>
-                                                </tr>
-                                                <tr>
-                                                    <td>Total Flight Distance</td>
-                                                    <td>Total distance traveled by the UAV in meters</td>
-                                                    <td>Lower is better</td>
-                                                </tr>
-                                                <tr>
-                                                    <td>Energy Consumed</td>
-                                                    <td>Total energy consumed by the UAV in Joules</td>
-                                                    <td>Lower is better</td>
-                                                </tr>
-                                                <tr>
-                                                    <td>Energy Efficiency</td>
-                                                    <td>Data processed per unit of energy in bits/Joule</td>
-                                                    <td>Higher is better</td>
-                                                </tr>
-                                                <tr>
-                                                    <td>Average Task Delay</td>
-                                                    <td>Average delay between task arrival and service in seconds</td>
-                                                    <td>Lower is better</td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    
-                                    <h5>Weighted Evaluation</h5>
-                                    <p>In practice, these metrics can be weighted differently based on the specific application requirements:</p>
-                                    <ul>
-                                        <li><strong>Energy-constrained scenarios:</strong> Energy consumption and efficiency are more important</li>
-                                        <li><strong>Throughput-focused applications:</strong> Number of serviced tasks and data processed are prioritized</li>
-                                        <li><strong>Real-time applications:</strong> Task delay and response time are critical</li>
-                                    </ul>
-                                </div>
+                                <h5>Disadvantages:</h5>
+                                <ul>
+                                    <li>Computationally intensive</li>
+                                    <li>Performance depends on simulation quality</li>
+                                    <li>May converge slowly in some cases</li>
+                                </ul>
                             </div>
                         </div>
                     </div>
                 </div>
+                
+                <h3>Rapidly-exploring Random Tree (RRT)</h3>
+                <div class="row mb-4">
+                    <div class="col-md-8">
+                        <p>
+                            RRT is a sampling-based algorithm designed for path planning in continuous spaces. It incrementally 
+                            builds a tree from the start position by randomly sampling the environment and extending the tree 
+                            towards these samples.
+                        </p>
+                        <h4>RRT Process:</h4>
+                        <ol>
+                            <li><strong>Sampling:</strong> Randomly sample a point in the environment.</li>
+                            <li><strong>Finding Nearest:</strong> Find the nearest node in the tree to the sampled point.</li>
+                            <li><strong>Extending:</strong> Create a new node by extending from the nearest node towards the sampled point.</li>
+                            <li><strong>Checking:</strong> Add the new node to the tree if it doesn't collide with obstacles.</li>
+                            <li><strong>Goal Checking:</strong> Check if the goal is reached.</li>
+                        </ol>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5>Advantages:</h5>
+                                <ul>
+                                    <li>Fast exploration of configuration space</li>
+                                    <li>Simple to implement</li>
+                                    <li>Works well in continuous environments</li>
+                                </ul>
+                                
+                                <h5>Disadvantages:</h5>
+                                <ul>
+                                    <li>Paths may not be optimal</li>
+                                    <li>Sensitive to parameters</li>
+                                    <li>Can be inefficient in narrow passages</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <h2>Simulation Environment</h2>
+                <p>
+                    The simulation environment consists of:
+                </p>
+                <ul>
+                    <li><strong>World:</strong> A 2D space where the UAV and users are located.</li>
+                    <li><strong>UAV:</strong> The aerial vehicle with limited energy that needs to service user requests.</li>
+                    <li><strong>Users:</strong> Entities in the environment that generate data tasks for the UAV to service.</li>
+                    <li><strong>Tasks:</strong> Data transfer requests that the UAV needs to fulfill by reaching the user's location.</li>
+                </ul>
+                
+                <h3>Performance Metrics</h3>
+                <p>
+                    The following metrics are used to evaluate algorithm performance:
+                </p>
+                <ul>
+                    <li><strong>Serviced Tasks:</strong> Number of user tasks successfully completed.</li>
+                    <li><strong>Data Processed:</strong> Total amount of data transferred during task servicing (in MB).</li>
+                    <li><strong>Energy Consumed:</strong> Total energy used by the UAV (in Joules).</li>
+                    <li><strong>Total Distance:</strong> Total distance traveled by the UAV (in meters).</li>
+                    <li><strong>Remaining Energy:</strong> Energy left in the UAV after the simulation.</li>
+                </ul>
+                
+                <h2>Using the Application</h2>
+                <h3>Simulation Page</h3>
+                <p>
+                    The simulation page allows you to:
+                </p>
+                <ul>
+                    <li>Select an algorithm (MCTS or RRT)</li>
+                    <li>Set the maximum number of simulation steps</li>
+                    <li>Run a simulation and visualize the results</li>
+                    <li>Reset the simulation environment</li>
+                </ul>
+                
+                <h3>Comparison Page</h3>
+                <p>
+                    The comparison page:
+                </p>
+                <ul>
+                    <li>Shows a comparison of metrics across different algorithm runs</li>
+                    <li>Visualizes the performance differences using charts</li>
+                    <li>Lists all simulation results in a table for detailed analysis</li>
+                </ul>
+                
+                <h2>Implementation Details</h2>
+                <h3>Code Structure</h3>
+                <ul>
+                    <li><strong>algorithms/:</strong> Implementation of path planning algorithms (MCTS, RRT)</li>
+                    <li><strong>simulation/:</strong> Core simulation components (environment, UAV model)</li>
+                    <li><strong>utils/:</strong> Utility functions and configuration</li>
+                    <li><strong>visualization/:</strong> Tools for visualizing simulation results</li>
+                    <li><strong>web/:</strong> Web interface for interactive use</li>
+                </ul>
             </div>
         </div>
     </div>

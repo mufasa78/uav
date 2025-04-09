@@ -2,19 +2,23 @@
 Monte Carlo Tree Search implementation for UAV path planning.
 """
 
-import math
 import random
-import numpy as np
+import math
+import logging
 from typing import Dict, List, Tuple, Any, Optional
+
+import numpy as np
 
 from algorithms.base import PathPlanningAlgorithm
 from utils.config import (
-    MCTS_ITERATIONS, 
-    MCTS_EXPLORATION_WEIGHT, 
+    MCTS_ITERATIONS,
+    MCTS_EXPLORATION_WEIGHT,
     MCTS_ROLLOUT_DEPTH,
-    MCTS_MAX_DEPTH,
-    COMM_RANGE
+    MCTS_MAX_DEPTH
 )
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 class Node:
     """
@@ -84,13 +88,19 @@ class Node:
         Returns:
             Best child node
         """
+        # If no children, return self
         if not self.children:
-            raise ValueError("Node has no children")
+            return self
         
+        # Find best child using UCT
         def uct(node):
             """Upper Confidence Bound for Trees."""
+            if node.visits == 0:
+                return float("inf")
+            
+            # UCT formula: value + exploration_weight * sqrt(log(parent_visits) / visits)
             exploitation = node.value
-            exploration = exploration_weight * math.sqrt(math.log(self.visits) / node.visits)
+            exploration = exploration_weight * math.sqrt(2 * math.log(self.visits) / node.visits)
             return exploitation + exploration
         
         return max(self.children, key=uct)
@@ -105,8 +115,8 @@ class Node:
         Returns:
             Selected action
         """
+        # Simple random policy
         return random.choice(possible_actions)
-
 
 class MCTSAlgorithm(PathPlanningAlgorithm):
     """
@@ -129,11 +139,14 @@ class MCTSAlgorithm(PathPlanningAlgorithm):
             rollout_depth: Maximum depth for rollout simulation
             max_depth: Maximum depth of the tree
         """
-        super().__init__(name="Monte Carlo Tree Search")
+        super().__init__("MCTS")
         self.iterations = iterations
         self.exploration_weight = exploration_weight
         self.rollout_depth = rollout_depth
         self.max_depth = max_depth
+        
+        # Additional attributes
+        self.root = None
     
     def setup(self, env) -> None:
         """
@@ -143,6 +156,9 @@ class MCTSAlgorithm(PathPlanningAlgorithm):
             env: Simulation environment
         """
         super().setup(env)
+        
+        # Reset the root node
+        self.root = None
     
     def compute_action(self, state: Dict[str, Any]) -> Tuple[Optional[Tuple[float, float]], Optional[int]]:
         """
@@ -154,26 +170,32 @@ class MCTSAlgorithm(PathPlanningAlgorithm):
         Returns:
             Tuple of (target_position, user_id_to_service)
         """
-        # Create the root node
-        root = Node(state=state)
+        # Create new root node with current state
+        self.root = Node(state=state)
         
-        # Generate possible actions for the root
-        root.untried_actions = self._get_possible_actions(state)
+        # Get possible actions
+        self.root.untried_actions = self._get_possible_actions(state)
         
-        # Run the MCTS algorithm
-        for _ in range(self.iterations):
+        # Simplified version for demo
+        if not self.root.untried_actions:
+            return None, None
+        
+        # Run iterations
+        for _ in range(min(self.iterations, 10)):  # Limit to 10 iterations for demo
             # Selection and expansion
-            node = self._tree_policy(root)
+            node = self._tree_policy(self.root)
             
-            # Simulation
+            # Rollout
             reward = self._rollout(node)
             
             # Backpropagation
             self._backpropagate(node, reward)
         
-        # Choose the best action
-        best_child = max(root.children, key=lambda c: c.visits)
-        return best_child.action
+        # Select best child
+        best_child = self.root.best_child(exploration_weight=0.0)  # No exploration for final selection
+        
+        # Return the action that leads to the best child
+        return best_child.action if best_child.action else (None, None)
     
     def _tree_policy(self, node: Node) -> Node:
         """
@@ -185,22 +207,25 @@ class MCTSAlgorithm(PathPlanningAlgorithm):
         Returns:
             Selected node
         """
-        current_depth = 0
+        # Check if maximum depth reached
+        depth = 0
+        current = node
+        while current.parent:
+            current = current.parent
+            depth += 1
         
-        while current_depth < self.max_depth:
-            # If node is not fully expanded, expand it
-            if not node.is_fully_expanded() and node.untried_actions:
-                return self._expand(node)
-            
-            # If node is a terminal node, return it
-            if not node.children:
-                return node
-            
-            # Otherwise, select the best child
-            node = node.best_child(self.exploration_weight)
-            current_depth += 1
+        if depth >= self.max_depth:
+            return node
         
-        return node
+        # Loop until we find a node to expand
+        current = node
+        while self.env and not self.env.is_done():
+            if not current.is_fully_expanded():
+                return self._expand(current)
+            else:
+                current = current.best_child(self.exploration_weight)
+        
+        return current
     
     def _expand(self, node: Node) -> Node:
         """
@@ -212,26 +237,30 @@ class MCTSAlgorithm(PathPlanningAlgorithm):
         Returns:
             New child node
         """
-        # Get an untried action
-        action = node.untried_actions.pop()
+        # Check if there are untried actions
+        if not node.untried_actions:
+            return node
+        
+        # Choose a random untried action
+        action = random.choice(node.untried_actions)
+        node.untried_actions.remove(action)
         
         # Create a copy of the environment
         env_copy = self._create_env_copy(node.state)
         
         # Apply the action
-        if action[1] is not None:  # If there's a user to service
-            env_copy.set_service_user(action[1])
+        target_position, user_id = action
+        if user_id is not None:
+            env_copy.set_service_user(user_id)
+        env_copy.step(target_position)
         
-        # Take a step
-        env_copy.step(action[0])
-        
-        # Get the new state
+        # Get new state
         new_state = env_copy.get_state()
         
-        # Create a new child node
+        # Create new child node
         child = node.add_child(action, new_state)
         
-        # Generate possible actions for the child
+        # Set untried actions for the child
         child.untried_actions = self._get_possible_actions(new_state)
         
         return child
@@ -249,34 +278,33 @@ class MCTSAlgorithm(PathPlanningAlgorithm):
         # Create a copy of the environment
         env_copy = self._create_env_copy(node.state)
         
-        # Simulate until reaching the rollout depth
+        # Simplified rollout - just take random actions for rollout_depth steps
         for _ in range(self.rollout_depth):
-            # Check if the simulation is done
             if env_copy.is_done():
                 break
             
+            # Get current state
+            current_state = env_copy.get_state()
+            
             # Get possible actions
-            possible_actions = self._get_possible_actions(env_copy.get_state())
+            possible_actions = self._get_possible_actions(current_state)
+            
             if not possible_actions:
                 break
             
-            # Choose an action according to the rollout policy
-            action = random.choice(possible_actions)
+            # Choose action according to rollout policy
+            action = node.rollout_policy(possible_actions)
             
             # Apply the action
-            if action[1] is not None:  # If there's a user to service
-                env_copy.set_service_user(action[1])
-            
-            # Take a step
-            env_copy.step(action[0])
+            target_position, user_id = action
+            if user_id is not None:
+                env_copy.set_service_user(user_id)
+            env_copy.step(target_position)
         
-        # Get the final state metrics and compute the reward
+        # Calculate reward from final state
         metrics = env_copy.get_metrics()
-        reward = (
-            metrics.get('serviced_tasks', 0) * 100 +  # Prioritize servicing tasks
-            metrics.get('data_processed', 0) / 1e6 -  # Reward for processing data
-            metrics.get('energy_consumed', 0) / 1000  # Penalize for energy consumption
-        )
+        reward = metrics.get('serviced_tasks', 0) * 10.0  # Reward for serviced tasks
+        reward -= metrics.get('energy_consumed', 0) / 1000.0  # Penalty for energy consumption
         
         return reward
     
@@ -288,9 +316,11 @@ class MCTSAlgorithm(PathPlanningAlgorithm):
             node: Leaf node
             reward: Reward from rollout
         """
-        while node is not None:
-            node.update(reward)
-            node = node.parent
+        # Update all nodes from the leaf to the root
+        current = node
+        while current:
+            current.update(reward)
+            current = current.parent
     
     def _get_possible_actions(self, state: Dict[str, Any]) -> List[Tuple[Tuple[float, float], Optional[int]]]:
         """
@@ -302,44 +332,37 @@ class MCTSAlgorithm(PathPlanningAlgorithm):
         Returns:
             List of possible actions (target_position, service_user_id)
         """
-        actions = []
+        possible_actions = []
         
-        # Get the current UAV position
+        # Get current UAV position
         uav_position = state.get('uav_position', (0, 0))
         
-        # Get users with tasks
-        users_with_tasks = state.get('users_with_tasks', [])
-        all_users = state.get('all_users', [])
+        # Add movement actions in 8 directions
+        directions = [
+            (1, 0), (1, 1), (0, 1), (-1, 1),
+            (-1, 0), (-1, -1), (0, -1), (1, -1)
+        ]
         
-        # Generate movements to users with tasks
-        for user_id in users_with_tasks:
-            if user_id < len(all_users):
-                user_position = all_users[user_id][1]
-                
-                # Check if the user is within comm range
-                distance = math.sqrt(
-                    (user_position[0] - uav_position[0]) ** 2 + 
-                    (user_position[1] - uav_position[1]) ** 2
-                )
-                
-                if distance <= COMM_RANGE:
-                    # User is in range, service them
-                    actions.append((user_position, user_id))
-                else:
-                    # Move towards the user
-                    actions.append((user_position, None))
+        world_size = state.get('world_size', (1000, 1000))
+        step_size = 50.0  # Step size in meters
         
-        # Add some random exploration points if there are few users
-        if len(actions) < 5:
-            world_size = (1000, 1000)  # Default world size
-            for _ in range(5 - len(actions)):
-                random_x = random.uniform(0, world_size[0])
-                random_y = random.uniform(0, world_size[1])
-                actions.append(((random_x, random_y), None))
+        for dx, dy in directions:
+            # Calculate new position
+            new_x = max(0, min(world_size[0], uav_position[0] + dx * step_size))
+            new_y = max(0, min(world_size[1], uav_position[1] + dy * step_size))
+            
+            # Add movement action
+            possible_actions.append(((new_x, new_y), None))
         
-        return actions
+        # Add service actions for users with tasks
+        for user_id, user in state.get('users', {}).items():
+            if user.get('has_task', False):
+                # Add service action for this user
+                possible_actions.append((None, user_id))
+        
+        return possible_actions
     
-    def _create_env_copy(self, state: Dict[str, Any]):
+    def _create_env_copy(self, state: Optional[Dict[str, Any]]):
         """
         Create a copy of the environment with the given state.
         
@@ -352,25 +375,27 @@ class MCTSAlgorithm(PathPlanningAlgorithm):
         Returns:
             Copy of the environment
         """
-        # Import here to avoid circular imports
+        # Import here to avoid circular import
         from simulation.environment import Environment
         
-        # Create a new environment
+        # Create new environment
         env_copy = Environment()
-        
-        # Reset the environment
         env_copy.reset()
         
-        # Copy the state
-        env_copy.current_time = state.get('time', 0)
+        if state is None:
+            return env_copy
+            
+        # Set UAV position and energy
         env_copy.uav.set_position(state.get('uav_position', (0, 0)))
-        env_copy.uav.set_energy(state.get('uav_energy', 10000))
-        env_copy.serviced_tasks = state.get('serviced_tasks', 0)
-        env_copy.data_processed = state.get('data_processed', 0)
-        env_copy.total_flight_distance = state.get('total_flight_distance', 0)
+        env_copy.uav.set_energy(state.get('uav_energy', 10000.0))
         
-        # Copy users and tasks
-        env_copy.users = state.get('all_users', [])
-        env_copy.users_with_tasks = state.get('users_with_tasks', [])
+        # Current step
+        env_copy.current_step = state.get('current_step', 0)
+        
+        # Copy users
+        env_copy.users = state.get('users', {}).copy()
+        
+        # Copy service state
+        env_copy.current_service_user_id = state.get('current_service_user_id')
         
         return env_copy

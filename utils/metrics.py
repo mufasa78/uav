@@ -1,161 +1,282 @@
 """
-Utilities for calculating and comparing metrics in UAV path planning.
+Metrics utilities for the UAV path planning simulation.
 """
 
+from typing import Dict, List, Tuple, Any, Optional
 import numpy as np
 import matplotlib.pyplot as plt
 
-def calculate_path_length(path):
+def calculate_distance(pos1: Tuple[float, float], pos2: Tuple[float, float]) -> float:
+    """
+    Calculate the Euclidean distance between two positions.
+    
+    Args:
+        pos1: First position (x, y)
+        pos2: Second position (x, y)
+        
+    Returns:
+        Euclidean distance
+    """
+    return np.sqrt((pos1[0] - pos2[0])**2 + (pos1[1] - pos2[1])**2)
+
+def calculate_path_length(trajectory: List[Tuple[float, float]]) -> float:
     """
     Calculate the total length of a path.
     
     Args:
-        path: List of (x, y) positions
+        trajectory: List of positions (x, y)
         
     Returns:
         Total path length
     """
-    if len(path) < 2:
+    if not trajectory or len(trajectory) < 2:
         return 0.0
     
     total_length = 0.0
-    for i in range(1, len(path)):
-        x1, y1 = path[i-1]
-        x2, y2 = path[i]
-        segment_length = np.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
-        total_length += segment_length
+    for i in range(1, len(trajectory)):
+        total_length += calculate_distance(trajectory[i-1], trajectory[i])
     
     return total_length
 
-def calculate_energy_consumption(path, hover_power, move_power, comm_power, time_step, service_times):
+def calculate_average_speed(trajectory: List[Tuple[float, float]], time_steps: List[float]) -> float:
     """
-    Calculate the energy consumption for a UAV path.
+    Calculate the average speed along a trajectory.
     
     Args:
-        path: List of (x, y) positions
-        hover_power: Power consumption when hovering in W
-        move_power: Power consumption when moving in W
-        comm_power: Power consumption when communicating in W
-        time_step: Time step in seconds
-        service_times: List of times when the UAV is servicing a user
+        trajectory: List of positions (x, y)
+        time_steps: List of time steps
         
     Returns:
-        Total energy consumption in J
+        Average speed
     """
-    total_energy = 0.0
-    
-    for i in range(1, len(path)):
-        # Check if UAV is servicing a user at this time step
-        t = i * time_step
-        is_servicing = any(abs(t - service_time) < time_step for service_time in service_times)
-        
-        # Calculate power consumption
-        x1, y1 = path[i-1]
-        x2, y2 = path[i]
-        distance = np.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
-        
-        if distance < 0.1:  # Basically hovering
-            power = hover_power
-        else:
-            power = move_power
-        
-        # Add communication power if servicing
-        if is_servicing:
-            power += comm_power
-        
-        # Calculate energy for this time step
-        energy = power * time_step
-        total_energy += energy
-    
-    return total_energy
-
-def calculate_average_delay(task_arrival_times, task_service_times):
-    """
-    Calculate the average delay between task arrival and service.
-    
-    Args:
-        task_arrival_times: List of task arrival times
-        task_service_times: List of task service times
-        
-    Returns:
-        Average delay in seconds
-    """
-    if not task_arrival_times or not task_service_times:
+    if not trajectory or len(trajectory) < 2 or len(trajectory) != len(time_steps):
         return 0.0
     
-    delays = []
-    for arrival, service in zip(task_arrival_times, task_service_times):
-        delay = service - arrival
-        delays.append(delay)
+    total_distance = calculate_path_length(trajectory)
+    total_time = time_steps[-1] - time_steps[0]
     
-    return np.mean(delays)
+    if total_time <= 0:
+        return 0.0
+    
+    return total_distance / total_time
 
-def calculate_energy_efficiency(data_processed, energy_consumed):
+def calculate_energy_efficiency(energy_consumed: float, data_processed: float) -> float:
     """
-    Calculate the energy efficiency in bits per Joule.
+    Calculate the energy efficiency in terms of data processed per unit of energy.
     
     Args:
-        data_processed: Amount of data processed in bits
         energy_consumed: Energy consumed in Joules
+        data_processed: Data processed in bits
         
     Returns:
         Energy efficiency in bits per Joule
     """
-    if energy_consumed == 0:
+    if energy_consumed <= 0:
         return 0.0
     
     return data_processed / energy_consumed
 
-def compare_algorithms(results_dict):
+def calculate_service_rate(serviced_tasks: int, total_tasks: int) -> float:
     """
-    Compare the performance of different algorithms.
+    Calculate the service rate as the ratio of serviced tasks to total tasks.
     
     Args:
-        results_dict: Dictionary with algorithm names as keys and results as values
+        serviced_tasks: Number of serviced tasks
+        total_tasks: Total number of tasks
         
     Returns:
-        Dictionary with comparison metrics
+        Service rate (0.0 to 1.0)
+    """
+    if total_tasks <= 0:
+        return 0.0
+    
+    return serviced_tasks / total_tasks
+
+def calculate_average_task_delay(task_delays: List[float]) -> float:
+    """
+    Calculate the average delay between task arrival and service.
+    
+    Args:
+        task_delays: List of task delays
+        
+    Returns:
+        Average task delay
+    """
+    if not task_delays:
+        return 0.0
+    
+    return sum(task_delays) / len(task_delays)
+
+def calculate_energy_per_distance(energy_consumed: float, total_distance: float) -> float:
+    """
+    Calculate the energy consumed per unit distance.
+    
+    Args:
+        energy_consumed: Energy consumed in Joules
+        total_distance: Total distance traveled in meters
+        
+    Returns:
+        Energy per distance in Joules per meter
+    """
+    if total_distance <= 0:
+        return 0.0
+    
+    return energy_consumed / total_distance
+
+def calculate_energy_per_task(energy_consumed: float, serviced_tasks: int) -> float:
+    """
+    Calculate the energy consumed per task serviced.
+    
+    Args:
+        energy_consumed: Energy consumed in Joules
+        serviced_tasks: Number of serviced tasks
+        
+    Returns:
+        Energy per task in Joules per task
+    """
+    if serviced_tasks <= 0:
+        return 0.0
+    
+    return energy_consumed / serviced_tasks
+
+def calculate_metrics_from_simulation(stats_log: List[Dict[str, Any]], trajectory: List[Tuple[float, float]], energy_log: List[float]) -> Dict[str, float]:
+    """
+    Calculate metrics from simulation logs.
+    
+    Args:
+        stats_log: List of statistics at each time step
+        trajectory: List of UAV positions
+        energy_log: List of UAV energy values
+        
+    Returns:
+        Dictionary with calculated metrics
+    """
+    metrics = {}
+    
+    # Basic metrics
+    total_flight_distance = calculate_path_length(trajectory)
+    metrics['total_flight_distance'] = total_flight_distance
+    
+    # Energy metrics
+    initial_energy = energy_log[0] if energy_log else 0.0
+    final_energy = energy_log[-1] if energy_log else 0.0
+    energy_consumed = initial_energy - final_energy
+    metrics['energy_consumed'] = energy_consumed
+    
+    # Task metrics
+    serviced_tasks = 0
+    data_processed = 0.0
+    task_delays = []
+    
+    for stats in stats_log:
+        if 'serviced_task' in stats and stats['serviced_task']:
+            serviced_tasks += 1
+            
+        if 'data_processed' in stats:
+            data_processed += stats.get('data_processed', 0.0)
+            
+        if 'task_delay' in stats and stats['task_delay'] is not None:
+            task_delays.append(stats['task_delay'])
+    
+    metrics['serviced_tasks'] = serviced_tasks
+    metrics['data_processed'] = data_processed
+    
+    # Calculate derived metrics
+    if energy_consumed > 0:
+        # Convert data from MB to bits for energy efficiency
+        metrics['energy_efficiency'] = calculate_energy_efficiency(energy_consumed, data_processed * 8 * 1024 * 1024)
+    else:
+        metrics['energy_efficiency'] = 0.0
+        
+    if task_delays:
+        metrics['avg_task_delay'] = calculate_average_task_delay(task_delays)
+    else:
+        metrics['avg_task_delay'] = 0.0
+        
+    if serviced_tasks > 0:
+        metrics['energy_per_task'] = calculate_energy_per_task(energy_consumed, serviced_tasks)
+    else:
+        metrics['energy_per_task'] = 0.0
+        
+    if total_flight_distance > 0:
+        metrics['energy_per_distance'] = calculate_energy_per_distance(energy_consumed, total_flight_distance)
+    else:
+        metrics['energy_per_distance'] = 0.0
+    
+    return metrics
+
+def compare_algorithms(results: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    """
+    Compare metrics from multiple algorithms.
+    
+    Args:
+        results: Dictionary with algorithm names as keys and metrics dictionaries as values
+        
+    Returns:
+        Dictionary with comparison results
     """
     comparison = {}
     
-    # Extract metrics for each algorithm
-    metrics = {}
-    for alg, results in results_dict.items():
-        metrics[alg] = {
-            'total_flight_distance': results['total_flight_distance'],
-            'energy_consumed': results['energy_consumed'],
-            'serviced_tasks': results['serviced_tasks'],
-            'data_processed': results['data_processed'],
-            'avg_task_delay': results['avg_task_delay'],
-            'energy_efficiency': results['energy_efficiency']
-        }
+    # List of metrics to compare
+    metrics_to_compare = [
+        'serviced_tasks',
+        'data_processed',
+        'total_flight_distance',
+        'energy_consumed',
+        'energy_efficiency',
+        'avg_task_delay'
+    ]
     
-    comparison['metrics'] = metrics
+    # Collect metric values for each algorithm
+    metric_values = {}
+    for metric in metrics_to_compare:
+        metric_values[metric] = {alg: results[alg].get(metric, 0.0) for alg in results}
     
-    # Determine which algorithm performs better for each metric
-    if len(metrics) > 1:
-        better_algorithm = {}
+    # Calculate best algorithm for each metric
+    best_algorithm = {}
+    for metric in metrics_to_compare:
+        values = {alg: metric_values[metric][alg] for alg in results}
         
-        # Compare total flight distance (lower is better)
-        distances = {alg: metrics[alg]['total_flight_distance'] for alg in metrics}
-        better_algorithm['total_flight_distance'] = min(distances, key=distances.get)
+        # For metrics where lower is better
+        if metric in ['total_flight_distance', 'energy_consumed', 'avg_task_delay']:
+            best_alg = min(values, key=lambda k: values[k])
+        # For metrics where higher is better
+        else:
+            best_alg = max(values, key=lambda k: values[k])
+            
+        best_algorithm[metric] = best_alg
+    
+    # Calculate improvement percentages
+    improvements = {}
+    for metric in metrics_to_compare:
+        improvements[metric] = {}
         
-        # Compare energy consumed (lower is better)
-        energy = {alg: metrics[alg]['energy_consumed'] for alg in metrics}
-        better_algorithm['energy_consumed'] = min(energy, key=energy.get)
-        
-        # Compare serviced tasks (higher is better)
-        tasks = {alg: metrics[alg]['serviced_tasks'] for alg in metrics}
-        better_algorithm['serviced_tasks'] = max(tasks, key=tasks.get)
-        
-        # Compare average task delay (lower is better)
-        delay = {alg: metrics[alg]['avg_task_delay'] for alg in metrics}
-        better_algorithm['avg_task_delay'] = min(delay, key=delay.get)
-        
-        # Compare energy efficiency (higher is better)
-        efficiency = {alg: metrics[alg]['energy_efficiency'] for alg in metrics}
-        better_algorithm['energy_efficiency'] = max(efficiency, key=efficiency.get)
-        
-        comparison['better_algorithm'] = better_algorithm
+        for alg1 in results:
+            improvements[metric][alg1] = {}
+            val1 = metric_values[metric][alg1]
+            
+            for alg2 in results:
+                if alg1 == alg2:
+                    improvements[metric][alg1][alg2] = 0.0
+                    continue
+                
+                val2 = metric_values[metric][alg2]
+                
+                if val2 == 0:
+                    improvements[metric][alg1][alg2] = 0.0
+                    continue
+                
+                # For metrics where lower is better
+                if metric in ['total_flight_distance', 'energy_consumed', 'avg_task_delay']:
+                    improvement = (val2 - val1) / val2 * 100.0
+                # For metrics where higher is better
+                else:
+                    improvement = (val1 - val2) / val2 * 100.0
+                
+                improvements[metric][alg1][alg2] = improvement
+    
+    comparison['metric_values'] = metric_values
+    comparison['best_algorithm'] = best_algorithm
+    comparison['improvements'] = improvements
     
     return comparison
