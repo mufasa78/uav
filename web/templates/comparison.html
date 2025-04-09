@@ -1,0 +1,294 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-lg-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Algorithm Comparison</h4>
+                    <button id="compare-btn" class="btn btn-primary">
+                        <i class="bi bi-arrow-repeat"></i> Compare Algorithms
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="comparison-container" class="text-center py-3">
+                        <div id="loading-indicator" class="d-none">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-3">Comparing algorithms...</p>
+                        </div>
+                        <div id="comparison-placeholder">
+                            <i class="bi bi-graph-up fs-1 mb-3 text-primary"></i>
+                            <h5>Run simulations to compare algorithms</h5>
+                            <p class="text-muted">Run both MCTS and RRT algorithms in the simulation page first, then click "Compare Algorithms" to see the comparison.</p>
+                            <a href="/simulation" class="btn btn-primary mt-2">
+                                <i class="bi bi-play-circle"></i> Go to Simulation
+                            </a>
+                        </div>
+                        <div id="comparison-content" class="d-none">
+                            <div class="row">
+                                <div class="col-md-12 mb-4">
+                                    <div class="plot-container">
+                                        <h5 class="mb-2">Trajectory Comparison</h5>
+                                        <img id="trajectories-plot" src="" alt="Trajectories Plot" class="img-fluid rounded">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="plot-container">
+                                        <h5 class="mb-2">Energy Consumption Comparison</h5>
+                                        <img id="energy-plot" src="" alt="Energy Plot" class="img-fluid rounded">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="plot-container">
+                                        <h5 class="mb-2">Performance Metrics Comparison</h5>
+                                        <img id="metrics-plot" src="" alt="Metrics Plot" class="img-fluid rounded">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Detailed Comparison</h4>
+                </div>
+                <div class="card-body">
+                    <div id="metrics-container" class="d-none">
+                        <table class="table table-bordered metrics-table">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Metric</th>
+                                    <th>MCTS</th>
+                                    <th>RRT</th>
+                                    <th>Difference</th>
+                                    <th>Better Algorithm</th>
+                                </tr>
+                            </thead>
+                            <tbody id="metrics-table-body">
+                                <!-- Metrics will be added here dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="no-metrics-placeholder" class="text-center py-4">
+                        <i class="bi bi-table fs-1 mb-3 text-primary"></i>
+                        <h5>No comparison data available</h5>
+                        <p class="text-muted">Run the comparison to see detailed metrics.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-lg-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Algorithm Analysis</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card bg-dark-subtle mb-3">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Monte Carlo Tree Search (MCTS)</h5>
+                                </div>
+                                <div class="card-body">
+                                    <h6>Advantages</h6>
+                                    <ul>
+                                        <li>Balances exploration and exploitation effectively</li>
+                                        <li>Handles uncertainty and probabilistic environments well</li>
+                                        <li>Produces theoretically optimal solutions given enough time</li>
+                                        <li>Doesn't require predefined heuristics</li>
+                                    </ul>
+                                    <h6>Limitations</h6>
+                                    <ul>
+                                        <li>Computationally intensive, especially for large state spaces</li>
+                                        <li>Performance depends heavily on simulation quality</li>
+                                        <li>May struggle with very long-horizon planning</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-dark-subtle mb-3">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Rapidly-exploring Random Tree (RRT)</h5>
+                                </div>
+                                <div class="card-body">
+                                    <h6>Advantages</h6>
+                                    <ul>
+                                        <li>Efficiently explores high-dimensional spaces</li>
+                                        <li>Fast convergence to feasible paths</li>
+                                        <li>Handles complex environments with obstacles well</li>
+                                        <li>Computationally efficient compared to exhaustive methods</li>
+                                    </ul>
+                                    <h6>Limitations</h6>
+                                    <ul>
+                                        <li>May not find optimal paths</li>
+                                        <li>Path smoothing often needed as post-processing</li>
+                                        <li>Performance can vary due to randomization</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card bg-dark-subtle">
+                        <div class="card-header">
+                            <h5 class="mb-0">Comparison Insights</h5>
+                        </div>
+                        <div class="card-body">
+                            <p>Both MCTS and RRT are state-of-the-art path planning algorithms but excel in different scenarios:</p>
+                            <ul>
+                                <li><strong>MCTS</strong> is typically more effective for scenarios requiring decision-making under uncertainty, such as dynamic environments with moving users or obstacles. It considers long-term consequences of actions.</li>
+                                <li><strong>RRT</strong> is often more efficient for pure path planning in complex static environments, finding feasible paths quickly without necessarily optimizing all metrics.</li>
+                                <li>For UAV applications with limited energy budgets, the algorithm that minimizes energy consumption while maximizing service tasks is generally preferable.</li>
+                                <li>In time-critical applications, RRT might provide faster initial solutions, while MCTS might produce more efficient paths given more computation time.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Compare button click
+        $('#compare-btn').click(function() {
+            // Show loading indicator
+            $('#loading-indicator').removeClass('d-none');
+            $('#comparison-placeholder').addClass('d-none');
+            $('#comparison-content').addClass('d-none');
+            
+            // Compare algorithms
+            $.ajax({
+                url: '/api/compare',
+                method: 'POST',
+                success: function(data) {
+                    // Hide loading indicator
+                    $('#loading-indicator').addClass('d-none');
+                    
+                    // Update plots
+                    $('#trajectories-plot').attr('src', 'data:image/png;base64,' + data.trajectories_plot);
+                    $('#energy-plot').attr('src', 'data:image/png;base64,' + data.energy_plot);
+                    $('#metrics-plot').attr('src', 'data:image/png;base64,' + data.metrics_plot);
+                    
+                    // Update metrics table
+                    updateMetricsTable(data.metrics);
+                    
+                    // Show comparison content
+                    $('#comparison-content').removeClass('d-none');
+                    $('#metrics-container').removeClass('d-none');
+                    $('#no-metrics-placeholder').addClass('d-none');
+                },
+                error: function(error) {
+                    console.error('Error comparing algorithms:', error);
+                    
+                    // Hide loading indicator
+                    $('#loading-indicator').addClass('d-none');
+                    $('#comparison-placeholder').removeClass('d-none');
+                    
+                    // Show error alert
+                    alert('Error comparing algorithms. Please run both MCTS and RRT simulations first.');
+                }
+            });
+        });
+        
+        // Function to update metrics table
+        function updateMetricsTable(metrics) {
+            const tableBody = $('#metrics-table-body');
+            tableBody.empty();
+            
+            // Get metrics for both algorithms
+            const mctsMetrics = metrics.mcts || {};
+            const rrtMetrics = metrics.rrt || {};
+            
+            // Define metrics to display and their properties
+            const metricsToDisplay = [
+                { key: 'serviced_tasks', name: 'Serviced Tasks', higherIsBetter: true, format: '0' },
+                { key: 'data_processed', name: 'Data Processed (MB)', higherIsBetter: true, format: '0.00' },
+                { key: 'total_flight_distance', name: 'Flight Distance (m)', higherIsBetter: false, format: '0.00' },
+                { key: 'energy_consumed', name: 'Energy Consumed (J)', higherIsBetter: false, format: '0.00' },
+                { key: 'energy_efficiency', name: 'Energy Efficiency (bits/J)', higherIsBetter: true, format: '0.00' },
+                { key: 'avg_task_delay', name: 'Average Task Delay (s)', higherIsBetter: false, format: '0.00' }
+            ];
+            
+            // Add row for each metric
+            metricsToDisplay.forEach(metric => {
+                const mctsValue = mctsMetrics[metric.key] || 0;
+                const rrtValue = rrtMetrics[metric.key] || 0;
+                const difference = mctsValue - rrtValue;
+                const absDifference = Math.abs(difference);
+                
+                // Determine better algorithm
+                let betterAlgorithm = 'Equal';
+                if (absDifference > 0.001) {  // Threshold to avoid floating point issues
+                    if (metric.higherIsBetter) {
+                        betterAlgorithm = mctsValue > rrtValue ? 'MCTS' : 'RRT';
+                    } else {
+                        betterAlgorithm = mctsValue < rrtValue ? 'MCTS' : 'RRT';
+                    }
+                }
+                
+                // Create table row
+                const row = $('<tr>');
+                
+                // Format values based on the metric format
+                const formattedMCTS = formatNumber(mctsValue, metric.format);
+                const formattedRRT = formatNumber(rrtValue, metric.format);
+                const formattedDiff = formatNumber(difference, metric.format);
+                
+                // Add cells
+                row.append($('<td>').text(metric.name));
+                row.append($('<td>').text(formattedMCTS));
+                row.append($('<td>').text(formattedRRT));
+                
+                // Style difference based on better algorithm
+                const diffCell = $('<td>');
+                if (difference > 0) {
+                    diffCell.text('+' + formattedDiff);
+                } else {
+                    diffCell.text(formattedDiff);
+                }
+                row.append(diffCell);
+                
+                // Add better algorithm cell with appropriate styling
+                const betterCell = $('<td>');
+                betterCell.text(betterAlgorithm);
+                if (betterAlgorithm === 'MCTS') {
+                    betterCell.addClass('text-primary');
+                } else if (betterAlgorithm === 'RRT') {
+                    betterCell.addClass('text-success');
+                }
+                row.append(betterCell);
+                
+                tableBody.append(row);
+            });
+        }
+        
+        // Helper function to format numbers
+        function formatNumber(value, format) {
+            if (format === '0') {
+                return Math.round(value);
+            } else if (format === '0.00') {
+                return value.toFixed(2);
+            }
+            return value;
+        }
+    });
+</script>
+{% endblock %}

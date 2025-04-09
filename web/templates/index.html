@@ -1,0 +1,89 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="px-4 py-5 my-5 text-center">
+    <i class="bi bi-drone fs-1 text-primary mb-3"></i>
+    <h1 class="display-5 fw-bold">UAV Path Planning Simulation</h1>
+    <div class="col-lg-8 mx-auto">
+        <p class="lead mb-4">
+            A simulation framework for comparing different UAV path planning algorithms including
+            Monte Carlo Tree Search (MCTS) and Rapidly-exploring Random Tree (RRT).
+        </p>
+        <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+            <a href="/simulation" class="btn btn-primary btn-lg px-4 gap-3">
+                <i class="bi bi-play-circle"></i> Run Simulation
+            </a>
+            <a href="/documentation" class="btn btn-outline-light btn-lg px-4">
+                <i class="bi bi-file-earmark-text"></i> Documentation
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="container px-4 py-5">
+    <h2 class="pb-2 border-bottom">Available Algorithms</h2>
+    <div class="row g-4 py-5 row-cols-1 row-cols-lg-2">
+        <div class="col d-flex align-items-start">
+            <div class="algorithm-card bg-dark-subtle rounded-3 p-4 w-100">
+                <div class="d-flex align-items-center mb-2">
+                    <div class="fs-1 text-primary me-3">
+                        <i class="bi bi-diagram-3"></i>
+                    </div>
+                    <h3 class="fw-bold mb-0 fs-4">Monte Carlo Tree Search (MCTS)</h3>
+                </div>
+                <p>A tree search algorithm that uses random sampling to evaluate moves and find optimal decisions. It balances exploration and exploitation using UCT (Upper Confidence Bound for Trees).</p>
+                <a href="/simulation?algorithm=mcts" class="btn btn-primary">
+                    Run MCTS
+                </a>
+            </div>
+        </div>
+        <div class="col d-flex align-items-start">
+            <div class="algorithm-card bg-dark-subtle rounded-3 p-4 w-100">
+                <div class="d-flex align-items-center mb-2">
+                    <div class="fs-1 text-success me-3">
+                        <i class="bi bi-grid-3x3-gap"></i>
+                    </div>
+                    <h3 class="fw-bold mb-0 fs-4">Rapidly-exploring Random Tree (RRT)</h3>
+                </div>
+                <p>A randomized algorithm designed to efficiently search high-dimensional spaces by building a space-filling tree. It grows by randomly sampling points and connecting them to the nearest node.</p>
+                <a href="/simulation?algorithm=rrt" class="btn btn-success">
+                    Run RRT
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container px-4 py-5">
+    <h2 class="pb-2 border-bottom">Key Features</h2>
+    <div class="row g-4 py-5">
+        <div class="col-md-4">
+            <div class="card h-100 bg-dark-subtle">
+                <div class="card-body">
+                    <i class="bi bi-graph-up text-info fs-1 mb-3"></i>
+                    <h5 class="card-title">Algorithm Comparison</h5>
+                    <p class="card-text">Compare different path planning algorithms based on metrics like energy consumption, path length, and task completion rate.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100 bg-dark-subtle">
+                <div class="card-body">
+                    <i class="bi bi-clipboard-data text-warning fs-1 mb-3"></i>
+                    <h5 class="card-title">Realistic Simulation</h5>
+                    <p class="card-text">Simulate UAV movement with realistic energy consumption, user mobility, and task generation models.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100 bg-dark-subtle">
+                <div class="card-body">
+                    <i class="bi bi-bar-chart-line text-success fs-1 mb-3"></i>
+                    <h5 class="card-title">Detailed Visualization</h5>
+                    <p class="card-text">Visualize UAV trajectories, energy consumption over time, and performance metrics for thorough analysis.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
