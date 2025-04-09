@@ -1,5 +1,6 @@
 """
 Rapidly-exploring Random Tree (RRT) implementation for UAV path planning.
+快速探索随机树算法在无人机路径规划中的实现。
 """
 
 import random
@@ -19,14 +20,17 @@ from utils.config import (
 class RRTNode:
     """
     Node in the RRT.
+    RRT中的节点。
     """
     
     def __init__(self, position: Tuple[float, float]):
         """
         Initialize a node.
+        初始化节点。
         
         Args:
             position: Position of the node (x, y)
+                     节点的位置坐标 (x, y)
         """
         self.position = position
         self.parent: Optional['RRTNode'] = None
@@ -35,6 +39,7 @@ class RRTNode:
 class RRTAlgorithm(PathPlanningAlgorithm):
     """
     Rapidly-exploring Random Tree algorithm for UAV path planning.
+    快速探索随机树算法用于无人机路径规划。
     """
     
     def __init__(
@@ -46,12 +51,17 @@ class RRTAlgorithm(PathPlanningAlgorithm):
     ):
         """
         Initialize the RRT algorithm.
+        初始化RRT算法。
         
         Args:
             max_iterations: Maximum number of iterations for tree building
+                           树构建的最大迭代次数
             step_size: Step size for extending the tree
+                     扩展树的步长
             goal_sample_rate: Probability of sampling the goal position
+                             采样目标位置的概率
             connect_circle_distance: Maximum distance to connect two nodes
+                                    连接两个节点的最大距离
         """
         super().__init__("RRT")
         self.max_iterations = max_iterations
@@ -91,12 +101,15 @@ class RRTAlgorithm(PathPlanningAlgorithm):
     def compute_action(self, state: Dict[str, Any]) -> Tuple[Optional[Tuple[float, float]], Optional[int]]:
         """
         Compute the next action using RRT.
+        使用RRT计算下一步动作。
         
         Args:
             state: Current state of the environment
+                  环境的当前状态
             
         Returns:
             Tuple of (target_position, user_id_to_service)
+            返回一个元组：(目标位置, 要服务的用户ID)
         """
         # Get current UAV position
         uav_position = state.get('uav_position', (0, 0))

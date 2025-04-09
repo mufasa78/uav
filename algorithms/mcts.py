@@ -1,5 +1,6 @@
 """
 Monte Carlo Tree Search implementation for UAV path planning.
+蒙特卡洛树搜索算法在无人机路径规划中的实现。
 """
 
 import random
@@ -23,8 +24,10 @@ logger = logging.getLogger(__name__)
 class Node:
     """
     Node in the Monte Carlo Tree Search.
+    蒙特卡洛树搜索中的节点。
     
     Each node represents a state in the simulation.
+    每个节点代表模拟中的一种状态。
     """
     
     def __init__(
@@ -35,11 +38,13 @@ class Node:
     ):
         """
         Initialize a node.
+        初始化节点。
         
         Args:
-            parent: Parent node
+            parent: Parent node (父节点)
             action: Action that led to this node (target_position, service_user_id)
-            state: State of the environment
+                   导致此节点的操作（目标位置，要服务的用户ID）
+            state: State of the environment (环境状态)
         """
         self.parent = parent
         self.action = action
@@ -121,6 +126,7 @@ class Node:
 class MCTSAlgorithm(PathPlanningAlgorithm):
     """
     Monte Carlo Tree Search algorithm for UAV path planning.
+    蒙特卡洛树搜索算法用于无人机路径规划。
     """
     
     def __init__(
@@ -132,12 +138,17 @@ class MCTSAlgorithm(PathPlanningAlgorithm):
     ):
         """
         Initialize the MCTS algorithm.
+        初始化MCTS算法。
         
         Args:
             iterations: Number of iterations for each action computation
+                       每次计算动作的迭代次数
             exploration_weight: Weight for exploration term in UCT
+                              UCT中探索项的权重
             rollout_depth: Maximum depth for rollout simulation
+                         展开模拟的最大深度
             max_depth: Maximum depth of the tree
+                     树的最大深度
         """
         super().__init__("MCTS")
         self.iterations = iterations
@@ -163,12 +174,15 @@ class MCTSAlgorithm(PathPlanningAlgorithm):
     def compute_action(self, state: Dict[str, Any]) -> Tuple[Optional[Tuple[float, float]], Optional[int]]:
         """
         Compute the next action using MCTS.
+        使用MCTS计算下一步动作。
         
         Args:
             state: Current state of the environment
+                 环境的当前状态
             
         Returns:
             Tuple of (target_position, user_id_to_service)
+            返回一个元组：(目标位置, 要服务的用户ID)
         """
         # Create new root node with current state
         self.root = Node(state=state)
@@ -200,12 +214,15 @@ class MCTSAlgorithm(PathPlanningAlgorithm):
     def _tree_policy(self, node: Node) -> Node:
         """
         Select a node to run the rollout from.
+        选择一个节点来进行展开模拟。
         
         Args:
             node: Starting node
+                 起始节点
             
         Returns:
             Selected node
+            选择的节点
         """
         # Check if maximum depth reached
         depth = 0
@@ -230,12 +247,15 @@ class MCTSAlgorithm(PathPlanningAlgorithm):
     def _expand(self, node: Node) -> Node:
         """
         Expand a node by adding a child.
+        通过添加子节点来扩展节点。
         
         Args:
             node: Node to expand
+                 要扩展的节点
             
         Returns:
             New child node
+            新的子节点
         """
         # Check if there are untried actions
         if not node.untried_actions:
@@ -268,12 +288,15 @@ class MCTSAlgorithm(PathPlanningAlgorithm):
     def _rollout(self, node: Node) -> float:
         """
         Perform a rollout from the node.
+        从节点开始执行展开模拟。
         
         Args:
             node: Starting node for rollout
+                 展开模拟的起始节点
             
         Returns:
             Reward from the rollout
+            展开模拟的奖励值
         """
         # Create a copy of the environment
         env_copy = self._create_env_copy(node.state)
@@ -311,10 +334,13 @@ class MCTSAlgorithm(PathPlanningAlgorithm):
     def _backpropagate(self, node: Node, reward: float) -> None:
         """
         Backpropagate the reward up the tree.
+        将奖励值反向传播到树的上层节点。
         
         Args:
             node: Leaf node
+                 叶子节点
             reward: Reward from rollout
+                   展开模拟的奖励值
         """
         # Update all nodes from the leaf to the root
         current = node
@@ -325,12 +351,15 @@ class MCTSAlgorithm(PathPlanningAlgorithm):
     def _get_possible_actions(self, state: Dict[str, Any]) -> List[Tuple[Tuple[float, float], Optional[int]]]:
         """
         Get possible actions from the current state.
+        从当前状态获取可能的动作。
         
         Args:
             state: Current state
+                  当前状态
             
         Returns:
             List of possible actions (target_position, service_user_id)
+            可能动作的列表（目标位置，要服务的用户ID）
         """
         possible_actions = []
         
@@ -365,15 +394,19 @@ class MCTSAlgorithm(PathPlanningAlgorithm):
     def _create_env_copy(self, state: Optional[Dict[str, Any]]):
         """
         Create a copy of the environment with the given state.
+        使用给定状态创建环境的副本。
         
         This is a simplified version that creates a new environment
         and manually copies the relevant state information.
+        这是一个简化版本，创建一个新的环境并手动复制相关的状态信息。
         
         Args:
             state: State to copy
+                  要复制的状态
             
         Returns:
             Copy of the environment
+            环境的副本
         """
         # Import here to avoid circular import
         from simulation.environment import Environment
