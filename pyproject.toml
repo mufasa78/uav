@@ -12,4 +12,5 @@ dependencies = [
     "matplotlib>=3.10.1",
     "numpy>=2.2.4",
     "psycopg2-binary>=2.9.10",
+    "streamlit>=1.44.1",
 ]
