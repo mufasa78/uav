@@ -1,5 +1,6 @@
 """
 Environment for UAV path planning simulation.
+无人机路径规划模拟环境。
 """
 
 import random
@@ -25,11 +26,13 @@ logger = logging.getLogger(__name__)
 class Environment:
     """
     Environment for UAV path planning simulation.
+    无人机路径规划模拟环境。
     """
     
     def __init__(self):
         """
         Initialize the environment.
+        初始化环境。
         """
         # UAV
         self.uav = UAV()
@@ -63,6 +66,7 @@ class Environment:
     def reset(self) -> None:
         """
         Reset the environment.
+        重置环境。
         """
         # Reset UAV
         self.uav = UAV()
@@ -91,6 +95,7 @@ class Environment:
     def _init_users(self) -> None:
         """
         Initialize the users.
+        初始化用户。
         """
         for i in range(NUM_USERS):
             # Random position within the world
@@ -241,9 +246,11 @@ class Environment:
     def step(self, target_position: Optional[Tuple[float, float]]) -> None:
         """
         Step the environment forward in time.
+        环境向前推进一个时间步长。
         
         Args:
             target_position: Target position for the UAV
+                           无人机的目标位置
         """
         # Move UAV if target_position is provided
         if target_position is not None:
@@ -291,9 +298,10 @@ class Environment:
     def get_metrics(self) -> Dict[str, float]:
         """
         Get the metrics of the simulation.
+        获取模拟的度量指标。
         
         Returns:
-            Dictionary with metrics
+            Dictionary with metrics 包含度量指标的字典
         """
         return {
             'serviced_tasks': self.serviced_tasks,
