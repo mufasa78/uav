@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}UAV Path Planning Simulation{% endblock %}</title>
+    <title>{% block title %}{% if language == 'zh' %}无人机路径规划模拟{% else %}UAV Path Planning Simulation{% endif %}{% endblock %}</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
     <!-- Custom CSS -->

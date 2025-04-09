@@ -3,25 +3,29 @@
 {% block content %}
 <div class="px-4 py-5 my-5 text-center">
     <i class="bi bi-drone fs-1 text-primary mb-3"></i>
-    <h1 class="display-5 fw-bold">UAV Path Planning Simulation</h1>
+    <h1 class="display-5 fw-bold">{% if language == 'zh' %}无人机路径规划模拟{% else %}UAV Path Planning Simulation{% endif %}</h1>
     <div class="col-lg-8 mx-auto">
         <p class="lead mb-4">
+            {% if language == 'zh' %}
+            一个用于比较不同无人机路径规划算法的模拟框架，包括蒙特卡洛树搜索（MCTS）和快速探索随机树（RRT）。
+            {% else %}
             A simulation framework for comparing different UAV path planning algorithms including
             Monte Carlo Tree Search (MCTS) and Rapidly-exploring Random Tree (RRT).
+            {% endif %}
         </p>
         <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
             <a href="/simulation" class="btn btn-primary btn-lg px-4 gap-3">
-                <i class="bi bi-play-circle"></i> Run Simulation
+                <i class="bi bi-play-circle"></i> {% if language == 'zh' %}运行模拟{% else %}Run Simulation{% endif %}
             </a>
             <a href="/documentation" class="btn btn-outline-light btn-lg px-4">
-                <i class="bi bi-file-earmark-text"></i> Documentation
+                <i class="bi bi-file-earmark-text"></i> {% if language == 'zh' %}文档{% else %}Documentation{% endif %}
             </a>
         </div>
     </div>
 </div>
 
 <div class="container px-4 py-5">
-    <h2 class="pb-2 border-bottom">Available Algorithms</h2>
+    <h2 class="pb-2 border-bottom">{% if language == 'zh' %}可用算法{% else %}Available Algorithms{% endif %}</h2>
     <div class="row g-4 py-5 row-cols-1 row-cols-lg-2">
         <div class="col d-flex align-items-start">
             <div class="algorithm-card bg-dark-subtle rounded-3 p-4 w-100">
@@ -29,11 +33,11 @@
                     <div class="fs-1 text-primary me-3">
                         <i class="bi bi-diagram-3"></i>
                     </div>
-                    <h3 class="fw-bold mb-0 fs-4">Monte Carlo Tree Search (MCTS)</h3>
+                    <h3 class="fw-bold mb-0 fs-4">{% if language == 'zh' %}蒙特卡洛树搜索 (MCTS){% else %}Monte Carlo Tree Search (MCTS){% endif %}</h3>
                 </div>
-                <p>A tree search algorithm that uses random sampling to evaluate moves and find optimal decisions. It balances exploration and exploitation using UCT (Upper Confidence Bound for Trees).</p>
+                <p>{% if language == 'zh' %}一种使用随机采样来评估移动并找到最佳决策的树搜索算法。它使用UCT（树的上置信界）来平衡探索和利用。{% else %}A tree search algorithm that uses random sampling to evaluate moves and find optimal decisions. It balances exploration and exploitation using UCT (Upper Confidence Bound for Trees).{% endif %}</p>
                 <a href="/simulation?algorithm=mcts" class="btn btn-primary">
-                    Run MCTS
+                    {% if language == 'zh' %}运行MCTS{% else %}Run MCTS{% endif %}
                 </a>
             </div>
         </div>
@@ -43,11 +47,11 @@
                     <div class="fs-1 text-success me-3">
                         <i class="bi bi-grid-3x3-gap"></i>
                     </div>
-                    <h3 class="fw-bold mb-0 fs-4">Rapidly-exploring Random Tree (RRT)</h3>
+                    <h3 class="fw-bold mb-0 fs-4">{% if language == 'zh' %}快速探索随机树 (RRT){% else %}Rapidly-exploring Random Tree (RRT){% endif %}</h3>
                 </div>
-                <p>A randomized algorithm designed to efficiently search high-dimensional spaces by building a space-filling tree. It grows by randomly sampling points and connecting them to the nearest node.</p>
+                <p>{% if language == 'zh' %}一种通过构建空间填充树来高效搜索高维空间的随机算法。它通过随机采样点并将它们连接到最近的节点来增长。{% else %}A randomized algorithm designed to efficiently search high-dimensional spaces by building a space-filling tree. It grows by randomly sampling points and connecting them to the nearest node.{% endif %}</p>
                 <a href="/simulation?algorithm=rrt" class="btn btn-success">
-                    Run RRT
+                    {% if language == 'zh' %}运行RRT{% else %}Run RRT{% endif %}
                 </a>
             </div>
         </div>
@@ -55,14 +59,14 @@
 </div>
 
 <div class="container px-4 py-5">
-    <h2 class="pb-2 border-bottom">Key Features</h2>
+    <h2 class="pb-2 border-bottom">{% if language == 'zh' %}主要特点{% else %}Key Features{% endif %}</h2>
     <div class="row g-4 py-5">
         <div class="col-md-4">
             <div class="card h-100 bg-dark-subtle">
                 <div class="card-body">
                     <i class="bi bi-graph-up text-info fs-1 mb-3"></i>
-                    <h5 class="card-title">Algorithm Comparison</h5>
-                    <p class="card-text">Compare different path planning algorithms based on metrics like energy consumption, path length, and task completion rate.</p>
+                    <h5 class="card-title">{% if language == 'zh' %}算法比较{% else %}Algorithm Comparison{% endif %}</h5>
+                    <p class="card-text">{% if language == 'zh' %}基于能耗、路径长度和任务完成率等指标比较不同的路径规划算法。{% else %}Compare different path planning algorithms based on metrics like energy consumption, path length, and task completion rate.{% endif %}</p>
                 </div>
             </div>
         </div>
@@ -70,8 +74,8 @@
             <div class="card h-100 bg-dark-subtle">
                 <div class="card-body">
                     <i class="bi bi-clipboard-data text-warning fs-1 mb-3"></i>
-                    <h5 class="card-title">Realistic Simulation</h5>
-                    <p class="card-text">Simulate UAV movement with realistic energy consumption, user mobility, and task generation models.</p>
+                    <h5 class="card-title">{% if language == 'zh' %}真实模拟{% else %}Realistic Simulation{% endif %}</h5>
+                    <p class="card-text">{% if language == 'zh' %}使用逼真的能量消耗、用户移动性和任务生成模型模拟无人机运动。{% else %}Simulate UAV movement with realistic energy consumption, user mobility, and task generation models.{% endif %}</p>
                 </div>
             </div>
         </div>
@@ -79,8 +83,8 @@
             <div class="card h-100 bg-dark-subtle">
                 <div class="card-body">
                     <i class="bi bi-bar-chart-line text-success fs-1 mb-3"></i>
-                    <h5 class="card-title">Detailed Visualization</h5>
-                    <p class="card-text">Visualize UAV trajectories, energy consumption over time, and performance metrics for thorough analysis.</p>
+                    <h5 class="card-title">{% if language == 'zh' %}详细可视化{% else %}Detailed Visualization{% endif %}</h5>
+                    <p class="card-text">{% if language == 'zh' %}可视化无人机轨迹、能量消耗随时间变化以及性能指标，以进行彻底分析。{% else %}Visualize UAV trajectories, energy consumption over time, and performance metrics for thorough analysis.{% endif %}</p>
                 </div>
             </div>
         </div>
