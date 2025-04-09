@@ -1,5 +1,5 @@
 {% extends "layout.html" %}
-{% block title %}Simulation - UAV Path Planning{% endblock %}
+{% block title %}{% if language == 'zh' %}模拟 - 无人机路径规划{% else %}Simulation - UAV Path Planning{% endif %}{% endblock %}
 
 {% block head %}
 <style>
@@ -26,12 +26,12 @@
         <div class="sidebar">
             <div class="card control-card">
                 <div class="card-header">
-                    <h5 class="card-title mb-0">Simulation Controls</h5>
+                    <h5 class="card-title mb-0">{% if language == 'zh' %}模拟控制{% else %}Simulation Controls{% endif %}</h5>
                 </div>
                 <div class="card-body">
                     <form id="simulation-form">
                         <div class="mb-3">
-                            <label for="algorithm" class="form-label">Algorithm</label>
+                            <label for="algorithm" class="form-label">{% if language == 'zh' %}算法{% else %}Algorithm{% endif %}</label>
                             <select class="form-select" id="algorithm" name="algorithm">
                                 {% for algorithm in algorithms %}
                                 <option value="{{ algorithm }}">{{ algorithm|upper }}</option>
@@ -39,12 +39,12 @@
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label for="max-steps" class="form-label">Max Steps</label>
+                            <label for="max-steps" class="form-label">{% if language == 'zh' %}最大步数{% else %}Max Steps{% endif %}</label>
                             <input type="number" class="form-control" id="max-steps" name="max-steps" value="1000" min="100" max="10000">
                         </div>
                         <div class="d-grid gap-2">
-                            <button type="button" id="reset-btn" class="btn btn-outline-secondary">Reset</button>
-                            <button type="button" id="run-btn" class="btn btn-primary">Run Simulation</button>
+                            <button type="button" id="reset-btn" class="btn btn-outline-secondary">{% if language == 'zh' %}重置{% else %}Reset{% endif %}</button>
+                            <button type="button" id="run-btn" class="btn btn-primary">{% if language == 'zh' %}运行模拟{% else %}Run Simulation{% endif %}</button>
                         </div>
                     </form>
                 </div>
@@ -52,28 +52,28 @@
             
             <div class="card metrics-card">
                 <div class="card-header">
-                    <h5 class="card-title mb-0">Simulation Metrics</h5>
+                    <h5 class="card-title mb-0">{% if language == 'zh' %}模拟指标{% else %}Simulation Metrics{% endif %}</h5>
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
                         <div class="metric-value" id="serviced-tasks">0</div>
-                        <div class="metric-label">Serviced Tasks</div>
+                        <div class="metric-label">{% if language == 'zh' %}已服务任务{% else %}Serviced Tasks{% endif %}</div>
                     </div>
                     <div class="mb-3">
                         <div class="metric-value" id="data-processed">0 MB</div>
-                        <div class="metric-label">Data Processed</div>
+                        <div class="metric-label">{% if language == 'zh' %}已处理数据{% else %}Data Processed{% endif %}</div>
                     </div>
                     <div class="mb-3">
                         <div class="metric-value" id="energy-consumed">0 J</div>
-                        <div class="metric-label">Energy Consumed</div>
+                        <div class="metric-label">{% if language == 'zh' %}已消耗能量{% else %}Energy Consumed{% endif %}</div>
                     </div>
                     <div class="mb-3">
                         <div class="metric-value" id="total-distance">0 m</div>
-                        <div class="metric-label">Total Distance</div>
+                        <div class="metric-label">{% if language == 'zh' %}总距离{% else %}Total Distance{% endif %}</div>
                     </div>
                     <div class="mb-3">
                         <div class="metric-value" id="remaining-energy">10000 J</div>
-                        <div class="metric-label">Remaining Energy</div>
+                        <div class="metric-label">{% if language == 'zh' %}剩余能量{% else %}Remaining Energy{% endif %}</div>
                     </div>
                 </div>
             </div>
@@ -83,20 +83,20 @@
     <div class="col-lg-9">
         <div class="card">
             <div class="card-header">
-                <h5 class="card-title mb-0">UAV Trajectory</h5>
+                <h5 class="card-title mb-0">{% if language == 'zh' %}无人机轨迹{% else %}UAV Trajectory{% endif %}</h5>
             </div>
             <div class="card-body">
                 <div class="canvas-container">
                     <canvas id="trajectory-canvas"></canvas>
                 </div>
                 
-                <h5 class="mt-4">Energy Consumption Over Time</h5>
+                <h5 class="mt-4">{% if language == 'zh' %}能量消耗随时间变化{% else %}Energy Consumption Over Time{% endif %}</h5>
                 <div class="canvas-container">
                     <canvas id="energy-canvas"></canvas>
                 </div>
                 
                 <div class="alert alert-info mt-3 d-none" id="simulation-status">
-                    Simulation running...
+                    {% if language == 'zh' %}模拟运行中...{% else %}Simulation running...{% endif %}
                 </div>
             </div>
         </div>
@@ -123,7 +123,7 @@
         data: {
             labels: [],
             datasets: [{
-                label: 'Energy (Joules)',
+                label: {% if language == 'zh' %}'能量 (焦耳)'{% else %}'Energy (Joules)'{% endif %},
                 data: [],
                 borderColor: 'rgba(75, 192, 192, 1)',
                 tension: 0.1,
@@ -138,13 +138,13 @@
                     beginAtZero: true,
                     title: {
                         display: true,
-                        text: 'Energy (J)'
+                        text: {% if language == 'zh' %}'能量 (J)'{% else %}'Energy (J)'{% endif %}
                     }
                 },
                 x: {
                     title: {
                         display: true,
-                        text: 'Time Steps'
+                        text: {% if language == 'zh' %}'时间步长'{% else %}'Time Steps'{% endif %}
                     }
                 }
             }
@@ -319,7 +319,11 @@
         
         // Show status
         const statusEl = document.getElementById('simulation-status');
+        {% if language == 'zh' %}
+        statusEl.textContent = `使用 ${algorithm.toUpperCase()} 算法运行模拟中...`;
+        {% else %}
         statusEl.textContent = `Running simulation with ${algorithm.toUpperCase()} algorithm...`;
+        {% endif %}
         statusEl.classList.remove('d-none');
         
         // Disable run button
@@ -360,18 +364,30 @@
                 });
                 
                 // Update status
+                {% if language == 'zh' %}
+                statusEl.textContent = `模拟完成。结果保存为 ${data.filename}。`;
+                {% else %}
                 statusEl.textContent = `Simulation completed. Results saved as ${data.filename}.`;
+                {% endif %}
                 statusEl.classList.remove('alert-info');
                 statusEl.classList.add('alert-success');
             } else {
+                {% if language == 'zh' %}
+                statusEl.textContent = `错误: ${data.message}`;
+                {% else %}
                 statusEl.textContent = `Error: ${data.message}`;
+                {% endif %}
                 statusEl.classList.remove('alert-info');
                 statusEl.classList.add('alert-danger');
             }
         })
         .catch(error => {
             console.error('Error running simulation:', error);
+            {% if language == 'zh' %}
+            statusEl.textContent = `运行模拟时出错: ${error.message}`;
+            {% else %}
             statusEl.textContent = `Error running simulation: ${error.message}`;
+            {% endif %}
             statusEl.classList.remove('alert-info');
             statusEl.classList.add('alert-danger');
         })

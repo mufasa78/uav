@@ -1,5 +1,5 @@
 {% extends "layout.html" %}
-{% block title %}Algorithm Comparison - UAV Path Planning{% endblock %}
+{% block title %}{% if language == 'zh' %}算法比较 - 无人机路径规划{% else %}Algorithm Comparison - UAV Path Planning{% endif %}{% endblock %}
 
 {% block head %}
 <style>
@@ -19,7 +19,7 @@
     <div class="col-12">
         <div class="card">
             <div class="card-header">
-                <h5 class="card-title mb-0">Algorithm Performance Comparison</h5>
+                <h5 class="card-title mb-0">{% if language == 'zh' %}算法性能比较{% else %}Algorithm Performance Comparison{% endif %}</h5>
             </div>
             <div class="card-body">
                 {% if results|length > 0 %}
@@ -31,18 +31,18 @@
                         </div>
                     </div>
                     
-                    <h5>Simulation Results</h5>
+                    <h5>{% if language == 'zh' %}模拟结果{% else %}Simulation Results{% endif %}</h5>
                     <div class="table-responsive">
                         <table class="table table-striped table-hover">
                             <thead>
                                 <tr>
-                                    <th>Filename</th>
-                                    <th>Algorithm</th>
-                                    <th>Serviced Tasks</th>
-                                    <th>Data Processed (MB)</th>
-                                    <th>Energy Consumed (J)</th>
-                                    <th>Total Distance (m)</th>
-                                    <th>Remaining Energy (J)</th>
+                                    <th>{% if language == 'zh' %}文件名{% else %}Filename{% endif %}</th>
+                                    <th>{% if language == 'zh' %}算法{% else %}Algorithm{% endif %}</th>
+                                    <th>{% if language == 'zh' %}已服务任务{% else %}Serviced Tasks{% endif %}</th>
+                                    <th>{% if language == 'zh' %}已处理数据 (MB){% else %}Data Processed (MB){% endif %}</th>
+                                    <th>{% if language == 'zh' %}已消耗能量 (J){% else %}Energy Consumed (J){% endif %}</th>
+                                    <th>{% if language == 'zh' %}总距离 (m){% else %}Total Distance (m){% endif %}</th>
+                                    <th>{% if language == 'zh' %}剩余能量 (J){% else %}Remaining Energy (J){% endif %}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -62,7 +62,11 @@
                     </div>
                 {% else %}
                     <div class="alert alert-info">
+                        {% if language == 'zh' %}
+                        暂无模拟结果。请在<a href="{{ url_for('simulation') }}">模拟</a>页面运行模拟来生成比较数据。
+                        {% else %}
                         No simulation results available yet. Run simulations on the <a href="{{ url_for('simulation') }}">Simulation</a> page to generate data for comparison.
+                        {% endif %}
                     </div>
                 {% endif %}
             </div>
@@ -154,11 +158,11 @@
         type: 'bar',
         data: {
             labels: [
-                'Serviced Tasks', 
-                'Data Processed (MB)', 
-                'Energy Consumed (J/100)', 
-                'Total Distance (m/10)', 
-                'Remaining Energy (J/100)'
+                {% if language == 'zh' %}'已服务任务'{% else %}'Serviced Tasks'{% endif %}, 
+                {% if language == 'zh' %}'已处理数据 (MB)'{% else %}'Data Processed (MB)'{% endif %}, 
+                {% if language == 'zh' %}'已消耗能量 (J/100)'{% else %}'Energy Consumed (J/100)'{% endif %}, 
+                {% if language == 'zh' %}'总距离 (m/10)'{% else %}'Total Distance (m/10)'{% endif %}, 
+                {% if language == 'zh' %}'剩余能量 (J/100)'{% else %}'Remaining Energy (J/100)'{% endif %}
             ],
             datasets: datasets
         },
@@ -173,7 +177,7 @@
             plugins: {
                 title: {
                     display: true,
-                    text: 'Algorithm Performance Metrics Comparison (Averages)'
+                    text: {% if language == 'zh' %}'算法性能指标比较（平均值）'{% else %}'Algorithm Performance Metrics Comparison (Averages)'{% endif %}
                 },
                 tooltip: {
                     callbacks: {
