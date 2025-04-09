@@ -13,6 +13,7 @@ import base64
 from typing import Dict, List, Any, Tuple, Optional
 
 from flask import Flask, render_template, request, jsonify, redirect, url_for, abort, session
+from flask_session import Session
 
 from simulation.environment import Environment
 from algorithms.base import PathPlanningAlgorithm
@@ -22,13 +23,17 @@ from utils.config import WORLD_SIZE, NUM_USERS
 
 # Configure logging
 # 配置日志
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # Create Flask app
 # 创建Flask应用
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "default-secret-key")
+app.config["SESSION_TYPE"] = "filesystem"
+app.config["SESSION_PERMANENT"] = True
+app.config["SESSION_USE_SIGNER"] = True
+Session(app)
 
 # Global variables
 # 全局变量
@@ -151,7 +156,23 @@ def documentation():
     Documentation page.
     文档页面。
     """
+    logger.debug(f"Current session language: {session.get('language', 'not set')}")
     return render_template("documentation.html")
+
+@app.route("/debug_session")
+def debug_session():
+    """
+    Debug route to check session data.
+    调试路由，用于检查会话数据。
+    """
+    return jsonify({
+        "session_data": {
+            "language": session.get("language", "not set"),
+            "all_data": dict(session)
+        },
+        "request_path": request.path,
+        "cookies": dict(request.cookies)
+    })
 
 # Add the language switcher route
 # 添加语言切换路由
@@ -163,6 +184,8 @@ def switch_language():
     """
     lang = request.form.get("language", "en")
     session["language"] = lang
+    logger.debug(f"Language switched to: {lang}")
+    session.modified = True
     return redirect(request.referrer or url_for("index"))
 
 @app.errorhandler(404)
@@ -200,7 +223,9 @@ def inject_language():
     Inject language variable into all templates.
     将语言变量注入所有模板。
     """
-    return {"language": session.get("language", "en")}
+    lang = session.get("language", "en")
+    logger.debug(f"Injecting language in template: {lang}")
+    return {"language": lang}
 
 if __name__ == "__main__":
     # Start the Flask development server
