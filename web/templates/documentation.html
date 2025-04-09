@@ -62,25 +62,24 @@
                     </div>
                 </div>
                 
-                <h3>{% if language == 'zh' %}快速探索随机树 (RRT){% else %}Rapidly-exploring Random Tree (RRT){% endif %}</h3>
+                <h3>{% if language == 'zh' %}快速探索随机树 (RRT*){% else %}Rapidly-exploring Random Tree (RRT*){% endif %}</h3>
                 <div class="row mb-4">
                     <div class="col-md-8">
                         <p>
                             {% if language == 'zh' %}
-                            RRT是一种基于采样的算法，专为连续空间中的路径规划设计。它通过随机采样环境并向这些样本扩展树，从起始位置逐步构建树。
+                            RRT*是RRT算法的一种优化变体，它能确保渐近最优性。该算法不仅在建树的同时添加新节点，还会通过rewiring过程重新连接现有节点以找到最低成本路径。
                             {% else %}
-                            RRT is a sampling-based algorithm designed for path planning in continuous spaces. It incrementally 
-                            builds a tree from the start position by randomly sampling the environment and extending the tree 
-                            towards these samples.
+                            RRT* is an optimized variant of RRT that ensures asymptotic optimality. The algorithm not only adds new nodes as it builds the tree, but also reconnects existing nodes through a rewiring process to find the lowest-cost path.
                             {% endif %}
                         </p>
-                        <h4>{% if language == 'zh' %}RRT流程：{% else %}RRT Process:{% endif %}</h4>
+                        <h4>{% if language == 'zh' %}RRT*流程：{% else %}RRT* Process:{% endif %}</h4>
                         <ol>
-                            <li><strong>{% if language == 'zh' %}采样：{% else %}Sampling:{% endif %}</strong> {% if language == 'zh' %}在环境中随机采样一个点。{% else %}Randomly sample a point in the environment.{% endif %}</li>
+                            <li><strong>{% if language == 'zh' %}采样：{% else %}Sampling:{% endif %}</strong> {% if language == 'zh' %}在环境中随机采样一个点，偏向于目标和路径困难区域。{% else %}Randomly sample a point in the environment, with bias towards the goal and challenging regions.{% endif %}</li>
                             <li><strong>{% if language == 'zh' %}寻找最近点：{% else %}Finding Nearest:{% endif %}</strong> {% if language == 'zh' %}找到树中离采样点最近的节点。{% else %}Find the nearest node in the tree to the sampled point.{% endif %}</li>
                             <li><strong>{% if language == 'zh' %}扩展：{% else %}Extending:{% endif %}</strong> {% if language == 'zh' %}通过从最近节点向采样点扩展来创建新节点。{% else %}Create a new node by extending from the nearest node towards the sampled point.{% endif %}</li>
-                            <li><strong>{% if language == 'zh' %}检查：{% else %}Checking:{% endif %}</strong> {% if language == 'zh' %}如果新节点不与障碍物碰撞，则将其添加到树中。{% else %}Add the new node to the tree if it doesn't collide with obstacles.{% endif %}</li>
-                            <li><strong>{% if language == 'zh' %}目标检查：{% else %}Goal Checking:{% endif %}</strong> {% if language == 'zh' %}检查是否达到目标。{% else %}Check if the goal is reached.{% endif %}</li>
+                            <li><strong>{% if language == 'zh' %}选择父节点：{% else %}Choosing Parent:{% endif %}</strong> {% if language == 'zh' %}在邻近节点中选择能提供最低路径成本的父节点。{% else %}Among nearby nodes, choose the parent that provides the lowest path cost.{% endif %}</li>
+                            <li><strong>{% if language == 'zh' %}重新连接：{% else %}Rewiring:{% endif %}</strong> {% if language == 'zh' %}检查新节点是否可以作为邻近节点的更好父节点。{% else %}Check if the new node can serve as a better parent for neighboring nodes.{% endif %}</li>
+                            <li><strong>{% if language == 'zh' %}路径平滑：{% else %}Path Smoothing:{% endif %}</strong> {% if language == 'zh' %}对最终路径进行后处理，移除不必要的转弯和弯曲。{% else %}Post-process the final path to remove unnecessary turns and bends.{% endif %}</li>
                         </ol>
                     </div>
                     <div class="col-md-4">
@@ -88,16 +87,60 @@
                             <div class="card-body">
                                 <h5>{% if language == 'zh' %}优点：{% else %}Advantages:{% endif %}</h5>
                                 <ul>
-                                    <li>{% if language == 'zh' %}快速探索配置空间{% else %}Fast exploration of configuration space{% endif %}</li>
-                                    <li>{% if language == 'zh' %}实现简单{% else %}Simple to implement{% endif %}</li>
-                                    <li>{% if language == 'zh' %}在连续环境中表现良好{% else %}Works well in continuous environments{% endif %}</li>
+                                    <li>{% if language == 'zh' %}产生最优或近似最优路径{% else %}Produces optimal or near-optimal paths{% endif %}</li>
+                                    <li>{% if language == 'zh' %}高效探索配置空间{% else %}Efficient exploration of configuration space{% endif %}</li>
+                                    <li>{% if language == 'zh' %}可生成更平滑的轨迹{% else %}Can generate smoother trajectories{% endif %}</li>
+                                    <li>{% if language == 'zh' %}具有渐近最优性保证{% else %}Has asymptotic optimality guarantees{% endif %}</li>
                                 </ul>
                                 
                                 <h5>{% if language == 'zh' %}缺点：{% else %}Disadvantages:{% endif %}</h5>
                                 <ul>
-                                    <li>{% if language == 'zh' %}路径可能不是最优的{% else %}Paths may not be optimal{% endif %}</li>
-                                    <li>{% if language == 'zh' %}对参数敏感{% else %}Sensitive to parameters{% endif %}</li>
-                                    <li>{% if language == 'zh' %}在狭窄通道中可能效率低下{% else %}Can be inefficient in narrow passages{% endif %}</li>
+                                    <li>{% if language == 'zh' %}比标准RRT计算复杂度更高{% else %}Higher computational complexity than standard RRT{% endif %}</li>
+                                    <li>{% if language == 'zh' %}对参数和启发式选择敏感{% else %}Sensitive to parameters and heuristic choices{% endif %}</li>
+                                    <li>{% if language == 'zh' %}在高维空间中可能收敛缓慢{% else %}May converge slowly in high-dimensional spaces{% endif %}</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3>{% if language == 'zh' %}A*算法{% else %}A* Algorithm{% endif %}</h3>
+                <div class="row mb-4">
+                    <div class="col-md-8">
+                        <p>
+                            {% if language == 'zh' %}
+                            A*是一种经典的启发式搜索算法，结合了最短路径算法（如Dijkstra）和启发式搜索。它使用启发式函数来引导搜索，同时考虑从起点到当前节点的实际成本。
+                            {% else %}
+                            A* is a classic heuristic search algorithm that combines shortest path algorithms (like Dijkstra's) with heuristic search. It uses a heuristic function to guide the search while considering the actual cost from the start to the current node.
+                            {% endif %}
+                        </p>
+                        <h4>{% if language == 'zh' %}A*流程：{% else %}A* Process:{% endif %}</h4>
+                        <ol>
+                            <li><strong>{% if language == 'zh' %}初始化：{% else %}Initialization:{% endif %}</strong> {% if language == 'zh' %}将起始节点添加到开放集，并计算其f值（f = g + h）。{% else %}Add the start node to the open set and calculate its f-value (f = g + h).{% endif %}</li>
+                            <li><strong>{% if language == 'zh' %}选择：{% else %}Selection:{% endif %}</strong> {% if language == 'zh' %}从开放集中选择具有最低f值的节点。{% else %}Select the node with the lowest f-value from the open set.{% endif %}</li>
+                            <li><strong>{% if language == 'zh' %}扩展：{% else %}Expansion:{% endif %}</strong> {% if language == 'zh' %}展开当前节点，生成所有相邻节点。{% else %}Expand the current node, generating all its adjacent nodes.{% endif %}</li>
+                            <li><strong>{% if language == 'zh' %}评估：{% else %}Evaluation:{% endif %}</strong> {% if language == 'zh' %}计算每个相邻节点的g和h值，并更新其父节点。{% else %}Calculate the g and h values for each adjacent node and update its parent.{% endif %}</li>
+                            <li><strong>{% if language == 'zh' %}终止条件：{% else %}Termination:{% endif %}</strong> {% if language == 'zh' %}如果目标节点已被找到或开放集为空，则停止。{% else %}Stop if the goal node has been found or the open set is empty.{% endif %}</li>
+                            <li><strong>{% if language == 'zh' %}路径重建：{% else %}Path Reconstruction:{% endif %}</strong> {% if language == 'zh' %}从目标节点向后追踪到起始节点以构建路径。{% else %}Trace back from the goal node to the start node to construct the path.{% endif %}</li>
+                        </ol>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5>{% if language == 'zh' %}优点：{% else %}Advantages:{% endif %}</h5>
+                                <ul>
+                                    <li>{% if language == 'zh' %}找到最优路径（若启发式函数可接受）{% else %}Finds optimal paths (if heuristic is admissible){% endif %}</li>
+                                    <li>{% if language == 'zh' %}比穷举搜索更高效{% else %}More efficient than exhaustive search{% endif %}</li>
+                                    <li>{% if language == 'zh' %}适用于网格化和离散化环境{% else %}Well-suited for gridded and discretized environments{% endif %}</li>
+                                    <li>{% if language == 'zh' %}实现简单且性能可预测{% else %}Simple to implement with predictable performance{% endif %}</li>
+                                </ul>
+                                
+                                <h5>{% if language == 'zh' %}缺点：{% else %}Disadvantages:{% endif %}</h5>
+                                <ul>
+                                    <li>{% if language == 'zh' %}内存消耗可能很高{% else %}Memory consumption can be high{% endif %}</li>
+                                    <li>{% if language == 'zh' %}在高维空间中效率较低{% else %}Less efficient in high-dimensional spaces{% endif %}</li>
+                                    <li>{% if language == 'zh' %}性能取决于启发式函数的质量{% else %}Performance depends on quality of heuristic function{% endif %}</li>
+                                    <li>{% if language == 'zh' %}需要离散化连续空间{% else %}Requires discretization of continuous spaces{% endif %}</li>
                                 </ul>
                             </div>
                         </div>
@@ -133,7 +176,7 @@
                     {% if language == 'zh' %}模拟页面允许您：{% else %}The simulation page allows you to:{% endif %}
                 </p>
                 <ul>
-                    <li>{% if language == 'zh' %}选择算法（MCTS或RRT）{% else %}Select an algorithm (MCTS or RRT){% endif %}</li>
+                    <li>{% if language == 'zh' %}选择算法（MCTS、RRT*或A*）{% else %}Select an algorithm (MCTS, RRT* or A*){% endif %}</li>
                     <li>{% if language == 'zh' %}设置最大模拟步数{% else %}Set the maximum number of simulation steps{% endif %}</li>
                     <li>{% if language == 'zh' %}运行模拟并可视化结果{% else %}Run a simulation and visualize the results{% endif %}</li>
                     <li>{% if language == 'zh' %}重置模拟环境{% else %}Reset the simulation environment{% endif %}</li>
@@ -152,11 +195,20 @@
                 <h2>{% if language == 'zh' %}实现细节{% else %}Implementation Details{% endif %}</h2>
                 <h3>{% if language == 'zh' %}代码结构{% else %}Code Structure{% endif %}</h3>
                 <ul>
-                    <li><strong>algorithms/:</strong> {% if language == 'zh' %}路径规划算法（MCTS、RRT）的实现{% else %}Implementation of path planning algorithms (MCTS, RRT){% endif %}</li>
+                    <li><strong>algorithms/:</strong> {% if language == 'zh' %}路径规划算法（MCTS、RRT*、A*）的实现{% else %}Implementation of path planning algorithms (MCTS, RRT*, A*){% endif %}</li>
                     <li><strong>simulation/:</strong> {% if language == 'zh' %}核心模拟组件（环境、无人机模型）{% else %}Core simulation components (environment, UAV model){% endif %}</li>
                     <li><strong>utils/:</strong> {% if language == 'zh' %}实用功能和配置{% else %}Utility functions and configuration{% endif %}</li>
                     <li><strong>visualization/:</strong> {% if language == 'zh' %}可视化模拟结果的工具{% else %}Tools for visualizing simulation results{% endif %}</li>
                     <li><strong>web/:</strong> {% if language == 'zh' %}交互式使用的Web界面{% else %}Web interface for interactive use{% endif %}</li>
+                </ul>
+
+                <h3>{% if language == 'zh' %}最近的改进{% else %}Recent Improvements{% endif %}</h3>
+                <ul>
+                    <li>{% if language == 'zh' %}为无人机路径规划添加了A*算法，包含网格化环境优化的路径查找功能{% else %}Added A* algorithm for UAV path planning with optimized path finding for gridded environments{% endif %}</li>
+                    <li>{% if language == 'zh' %}增强了蒙特卡洛树搜索(MCTS)算法，改进了奖励计算，使用折扣因子和更复杂的决策制定过程{% else %}Enhanced Monte Carlo Tree Search (MCTS) with improved reward calculations using discount factors and a more sophisticated decision-making process{% endif %}</li>
+                    <li>{% if language == 'zh' %}将RRT升级为RRT*，包括重新连接过程，确保渐近最优性{% else %}Upgraded RRT to RRT* including the rewiring process to ensure asymptotic optimality{% endif %}</li>
+                    <li>{% if language == 'zh' %}添加了路径平滑功能，可移除不必要的转弯，提高能源效率{% else %}Added path smoothing functionality to remove unnecessary turns and improve energy efficiency{% endif %}</li>
+                    <li>{% if language == 'zh' %}改进了算法比较功能，允许进行更全面和详细的性能分析{% else %}Improved algorithm comparison functionality for more comprehensive and detailed performance analysis{% endif %}</li>
                 </ul>
             </div>
         </div>
