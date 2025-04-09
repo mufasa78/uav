@@ -177,13 +177,20 @@ class RRTAlgorithm(PathPlanningAlgorithm):
         # Default behavior - stay in place
         return (None, None)
     
-    def plan_path(self, start: Tuple[float, float], goal: Tuple[float, float]) -> None:
+    def plan_path(self, start: Tuple[float, float], goal: Tuple[float, float]) -> List[Tuple[float, float]]:
         """
-        Plan a path using RRT.
+        Plan a path using RRT* (an improved version of RRT).
+        使用RRT*（RRT的改进版本）规划路径。
         
         Args:
             start: Start position
+                  起始位置
             goal: Goal position
+                 目标位置
+                 
+        Returns:
+            List of waypoints
+            航点列表
         """
         # Reset the tree
         self.nodes = []
@@ -200,22 +207,64 @@ class RRTAlgorithm(PathPlanningAlgorithm):
         self.nearest_node_to_goal = start_node
         nearest_dist = float('inf')
         
+        # Get world size
+        world_size = (1000, 1000)
+        if self.env:
+            state = self.env.get_state()
+            if state:
+                world_size = state.get('world_size', (1000, 1000))
+        
+        # Get obstacles
+        obstacles = []
+        if self.env:
+            state = self.env.get_state()
+            if state:
+                obstacles = state.get('obstacles', [])
+        
+        # Calculate neighborhood radius for rewiring
+        # The neighborhood radius is proportional to the size of the space and inversely proportional to the cube root of the number of nodes
+        neighborhood_radius = min(world_size) * math.sqrt(math.log(self.max_iterations + 1) / self.max_iterations)
+        
         # Build the tree
         for i in range(self.max_iterations):
-            # Sample a random point
-            if random.random() < self.goal_sample_rate:
+            # Sample a random point with increasing bias towards the goal
+            goal_sample_rate = self.goal_sample_rate
+            if i > self.max_iterations * 0.7:  # Increase goal sampling rate in the later iterations
+                goal_sample_rate = min(0.5, goal_sample_rate + 0.1)
+                
+            if random.random() < goal_sample_rate:
                 # Sample the goal directly
                 random_point = goal
             else:
                 # Sample a random point in the world
-                world_size = (1000, 1000)
-                if self.env:
-                    state = self.env.get_state()
-                    if state:
-                        world_size = state.get('world_size', (1000, 1000))
+                # Bias sampling towards areas of interest (around the start, goal, and midpoint)
+                bias = random.random()
+                if bias < 0.1:  # Sample near start
+                    random_point = (
+                        start[0] + random.uniform(-100, 100),
+                        start[1] + random.uniform(-100, 100)
+                    )
+                elif bias < 0.2:  # Sample near goal
+                    random_point = (
+                        goal[0] + random.uniform(-100, 100),
+                        goal[1] + random.uniform(-100, 100)
+                    )
+                elif bias < 0.3:  # Sample near midpoint
+                    midpoint = ((start[0] + goal[0]) / 2, (start[1] + goal[1]) / 2)
+                    random_point = (
+                        midpoint[0] + random.uniform(-100, 100),
+                        midpoint[1] + random.uniform(-100, 100)
+                    )
+                else:  # Sample randomly in the world
+                    random_point = (
+                        random.uniform(0, world_size[0]),
+                        random.uniform(0, world_size[1])
+                    )
+                
+                # Clamp to world boundaries
                 random_point = (
-                    random.uniform(0, world_size[0]),
-                    random.uniform(0, world_size[1])
+                    max(0, min(world_size[0], random_point[0])),
+                    max(0, min(world_size[1], random_point[1]))
                 )
             
             # Find the nearest node
@@ -225,33 +274,24 @@ class RRTAlgorithm(PathPlanningAlgorithm):
             # Steer towards the random point
             new_node = self._steer(nearest_node, random_point)
             
-            # Check for collision - simplified, just check distance from obstacles
-            has_collision = False
-            obstacles = []
-            if self.env:
-                state = self.env.get_state()
-                if state:
-                    obstacles = state.get('obstacles', [])
-            for obstacle in obstacles:
-                obstacle_pos = obstacle.get('position', (0, 0))
-                obstacle_radius = obstacle.get('radius', 0)
-                
-                # Calculate distance to obstacle
-                distance = math.sqrt((new_node.position[0] - obstacle_pos[0]) ** 2 + (new_node.position[1] - obstacle_pos[1]) ** 2)
-                
-                # Check if collision
-                if distance < obstacle_radius + 5.0:  # Add some buffer
-                    has_collision = True
-                    break
-            
-            # Add the node if no collision
-            if not has_collision:
+            # Check for collision - check path from nearest to new node
+            if self._check_collision_free(nearest_node.position, new_node.position, obstacles):
+                # Add the new node to the tree
                 new_node.parent = nearest_node
                 new_node.cost = nearest_node.cost + math.sqrt(
                     (new_node.position[0] - nearest_node.position[0]) ** 2 + 
                     (new_node.position[1] - nearest_node.position[1]) ** 2
                 )
                 self.nodes.append(new_node)
+                
+                # Find all nodes near the new node for rewiring
+                near_indices = self._get_near_indices(new_node, neighborhood_radius)
+                
+                # Connect new node to lowest cost parent
+                self._choose_parent(new_node, near_indices)
+                
+                # Rewire near nodes through new node if it provides lower cost
+                self._rewire(new_node, near_indices)
                 
                 # Check if this node is closer to the goal
                 dist_to_goal = math.sqrt(
@@ -265,17 +305,236 @@ class RRTAlgorithm(PathPlanningAlgorithm):
                 
                 # Check if the goal is reached
                 if dist_to_goal <= self.connect_circle_distance:
-                    # Connect to goal
-                    goal_node = RRTNode(goal)
-                    goal_node.parent = new_node
-                    goal_node.cost = new_node.cost + dist_to_goal
-                    self.nodes.append(goal_node)
-                    self.nearest_node_to_goal = goal_node
-                    break
+                    # Try to connect to goal directly
+                    if self._check_collision_free(new_node.position, goal, obstacles):
+                        goal_node = RRTNode(goal)
+                        goal_node.parent = new_node
+                        goal_node.cost = new_node.cost + dist_to_goal
+                        self.nodes.append(goal_node)
+                        
+                        # Find all nodes near the goal for rewiring
+                        goal_near_indices = self._get_near_indices(goal_node, neighborhood_radius)
+                        
+                        # Connect goal to lowest cost parent
+                        self._choose_parent(goal_node, goal_near_indices)
+                        
+                        self.nearest_node_to_goal = goal_node
+                        nearest_dist = 0
         
         # Extract the path
-        self.path = self._extract_path(self.nearest_node_to_goal)
+        path = self._extract_path(self.nearest_node_to_goal)
         self.current_path_index = 0
+        self.path = path
+        
+        # Post-process path for smoothness
+        smoothed_path = self._smooth_path(path, obstacles)
+        self.path = smoothed_path
+        
+        return smoothed_path
+    
+    def _check_collision_free(self, from_pos: Tuple[float, float], to_pos: Tuple[float, float], obstacles: List[Dict[str, Any]]) -> bool:
+        """
+        Check if the path from from_pos to to_pos is collision-free.
+        检查从from_pos到to_pos的路径是否无碰撞。
+        
+        Args:
+            from_pos: Starting position
+                     起始位置
+            to_pos: Ending position
+                   终止位置
+            obstacles: List of obstacles
+                      障碍物列表
+            
+        Returns:
+            True if collision-free, False otherwise
+            如果无碰撞则返回True，否则返回False
+        """
+        # Number of collision checks along the path
+        num_checks = max(
+            int(math.sqrt(
+                (to_pos[0] - from_pos[0]) ** 2 + 
+                (to_pos[1] - from_pos[1]) ** 2
+            ) / 10),  # Check every 10 units
+            5  # Minimum 5 checks
+        )
+        
+        # Check collision at intermediate points
+        for i in range(1, num_checks + 1):
+            t = i / num_checks
+            x = from_pos[0] + t * (to_pos[0] - from_pos[0])
+            y = from_pos[1] + t * (to_pos[1] - from_pos[1])
+            check_pos = (x, y)
+            
+            # Check collision with all obstacles
+            for obstacle in obstacles:
+                obstacle_pos = obstacle.get('position', (0, 0))
+                obstacle_radius = obstacle.get('radius', 0)
+                
+                # Calculate distance to obstacle
+                distance = math.sqrt(
+                    (check_pos[0] - obstacle_pos[0]) ** 2 + 
+                    (check_pos[1] - obstacle_pos[1]) ** 2
+                )
+                
+                # Add buffer to obstacle radius
+                if distance < obstacle_radius + 10.0:
+                    return False
+        
+        return True
+    
+    def _get_near_indices(self, node: RRTNode, radius: float) -> List[int]:
+        """
+        Find indices of nodes near the given node.
+        查找给定节点附近的节点索引。
+        
+        Args:
+            node: Node to find neighbors of
+                 要查找邻居的节点
+            radius: Neighborhood radius
+                   邻域半径
+            
+        Returns:
+            List of indices of nearby nodes
+            附近节点的索引列表
+        """
+        indices = []
+        
+        for i, other_node in enumerate(self.nodes):
+            if other_node == node:
+                continue
+            
+            # Calculate distance
+            distance = math.sqrt(
+                (node.position[0] - other_node.position[0]) ** 2 + 
+                (node.position[1] - other_node.position[1]) ** 2
+            )
+            
+            # Check if within radius
+            if distance <= radius:
+                indices.append(i)
+        
+        return indices
+    
+    def _choose_parent(self, node: RRTNode, near_indices: List[int]) -> None:
+        """
+        Choose the parent that results in the lowest cost path to the given node.
+        选择到给定节点的成本最低的路径的父节点。
+        
+        Args:
+            node: Node to choose parent for
+                 要选择父节点的节点
+            near_indices: List of indices of nearby nodes
+                         附近节点的索引列表
+        """
+        if not near_indices:
+            return
+        
+        # Get obstacles
+        obstacles = []
+        if self.env:
+            state = self.env.get_state()
+            if state:
+                obstacles = state.get('obstacles', [])
+        
+        # Find minimum cost parent
+        min_cost = node.cost
+        min_node = node.parent
+        
+        for idx in near_indices:
+            near_node = self.nodes[idx]
+            
+            # Calculate potential cost
+            edge_cost = math.sqrt(
+                (node.position[0] - near_node.position[0]) ** 2 + 
+                (node.position[1] - near_node.position[1]) ** 2
+            )
+            potential_cost = near_node.cost + edge_cost
+            
+            # If lower cost and collision-free
+            if potential_cost < min_cost and self._check_collision_free(near_node.position, node.position, obstacles):
+                min_cost = potential_cost
+                min_node = near_node
+        
+        # Set new parent and cost
+        if min_node != node.parent:
+            node.parent = min_node
+            node.cost = min_cost
+    
+    def _rewire(self, node: RRTNode, near_indices: List[int]) -> None:
+        """
+        Rewire near nodes through the given node if it provides lower cost.
+        如果通过给定节点提供更低的成本，则重新连接附近的节点。
+        
+        Args:
+            node: Node to rewire through
+                 要通过其重新连接的节点
+            near_indices: List of indices of nearby nodes
+                         附近节点的索引列表
+        """
+        # Get obstacles
+        obstacles = []
+        if self.env:
+            state = self.env.get_state()
+            if state:
+                obstacles = state.get('obstacles', [])
+        
+        # Rewire
+        for idx in near_indices:
+            near_node = self.nodes[idx]
+            
+            # Calculate potential cost
+            edge_cost = math.sqrt(
+                (node.position[0] - near_node.position[0]) ** 2 + 
+                (node.position[1] - near_node.position[1]) ** 2
+            )
+            potential_cost = node.cost + edge_cost
+            
+            # If lower cost and collision-free
+            if potential_cost < near_node.cost and self._check_collision_free(node.position, near_node.position, obstacles):
+                # Rewire
+                near_node.parent = node
+                near_node.cost = potential_cost
+    
+    def _smooth_path(self, path: List[Tuple[float, float]], obstacles: List[Dict[str, Any]]) -> List[Tuple[float, float]]:
+        """
+        Smooth the path to remove unnecessary waypoints.
+        平滑路径以移除不必要的航点。
+        
+        Args:
+            path: Original path
+                 原始路径
+            obstacles: List of obstacles
+                      障碍物列表
+            
+        Returns:
+            Smoothed path
+            平滑后的路径
+        """
+        if len(path) <= 2:
+            return path
+        
+        # Initialize smoothed path with first point
+        smoothed_path = [path[0]]
+        
+        # For each point, check if we can go directly to a later point
+        i = 0
+        while i < len(path) - 1:
+            # Find the furthest point we can go to directly
+            furthest = i + 1
+            for j in range(i + 2, len(path)):
+                # Check if direct path from i to j is collision-free
+                if self._check_collision_free(path[i], path[j], obstacles):
+                    furthest = j
+                else:
+                    break
+            
+            # Add the furthest point to the smoothed path
+            smoothed_path.append(path[furthest])
+            
+            # Continue from that point
+            i = furthest
+        
+        return smoothed_path
     
     def _get_nearest_node_idx(self, position: Tuple[float, float]) -> int:
         """

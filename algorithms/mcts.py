@@ -301,8 +301,12 @@ class MCTSAlgorithm(PathPlanningAlgorithm):
         # Create a copy of the environment
         env_copy = self._create_env_copy(node.state)
         
-        # Simplified rollout - just take random actions for rollout_depth steps
-        for _ in range(self.rollout_depth):
+        # Track rewards at each step
+        accumulated_reward = 0.0
+        discount_factor = 0.95  # Discount factor for future rewards
+        
+        # Improved rollout - take actions according to the rollout policy for rollout_depth steps
+        for step in range(self.rollout_depth):
             if env_copy.is_done():
                 break
             
@@ -315,19 +319,156 @@ class MCTSAlgorithm(PathPlanningAlgorithm):
             if not possible_actions:
                 break
             
-            # Choose action according to rollout policy
-            action = node.rollout_policy(possible_actions)
+            # Choose action according to improved rollout policy (heuristic-based)
+            action = self._improved_rollout_policy(current_state, possible_actions)
             
             # Apply the action
             target_position, user_id = action
             if user_id is not None:
                 env_copy.set_service_user(user_id)
             env_copy.step(target_position)
+            
+            # Get immediate reward
+            immediate_reward = self._calculate_immediate_reward(current_state, env_copy.get_state())
+            
+            # Accumulate discounted reward
+            accumulated_reward += (discount_factor ** step) * immediate_reward
         
-        # Calculate reward from final state
-        metrics = env_copy.get_metrics()
-        reward = metrics.get('serviced_tasks', 0) * 10.0  # Reward for serviced tasks
-        reward -= metrics.get('energy_consumed', 0) / 1000.0  # Penalty for energy consumption
+        # Add final state evaluation
+        final_metrics = env_copy.get_metrics()
+        final_reward = (
+            final_metrics.get('serviced_tasks', 0) * 15.0 +      # Higher reward for serviced tasks
+            final_metrics.get('data_processed', 0) * 0.5 -       # Reward for processed data
+            final_metrics.get('energy_consumed', 0) / 800.0      # Adjusted penalty for energy consumption
+        )
+        
+        # Add reward for remaining energy proportional to the mission completion
+        if final_metrics.get('serviced_tasks', 0) > 0:
+            energy_efficiency = final_metrics.get('remaining_energy', 0) / self.env.uav.get_energy() if self.env else 0
+            final_reward += energy_efficiency * 5.0
+        
+        return accumulated_reward + final_reward
+    
+    def _improved_rollout_policy(self, state: Dict[str, Any], possible_actions: List[Tuple[Tuple[float, float], Optional[int]]]) -> Tuple[Tuple[float, float], Optional[int]]:
+        """
+        An improved policy for selecting actions during rollout.
+        
+        Args:
+            state: Current state
+            possible_actions: List of possible actions
+            
+        Returns:
+            Selected action
+        """
+        # If there's a user to service in range, prioritize that
+        uav_position = state.get('uav_position', (0, 0))
+        
+        # Filter service actions (actions where user_id is not None)
+        service_actions = [action for action in possible_actions if action[1] is not None]
+        
+        # If there are users to service, choose the closest one with the most data
+        if service_actions:
+            # Sort by distance and task data size (weighted combination)
+            def service_score(action):
+                user_id = action[1]
+                user = state.get('users', {}).get(user_id, {})
+                user_position = user.get('position', (0, 0))
+                distance = math.sqrt((uav_position[0] - user_position[0])**2 + (uav_position[1] - user_position[1])**2)
+                task_data = user.get('task_data', 0)
+                # Higher score for closer users with more data
+                return task_data / (distance + 1)
+            
+            # With 70% probability, select the best service action
+            if random.random() < 0.7:
+                return max(service_actions, key=service_score)
+        
+        # For movement actions, prefer moves towards users with tasks
+        movement_actions = [action for action in possible_actions if action[0] is not None]
+        
+        if movement_actions:
+            # Find users with tasks
+            users_with_tasks = []
+            for user_id, user in state.get('users', {}).items():
+                if user.get('has_task', False):
+                    users_with_tasks.append((user_id, user.get('position', (0, 0))))
+            
+            if users_with_tasks:
+                # Sort by distance to UAV
+                users_with_tasks.sort(key=lambda u: math.sqrt((u[1][0] - uav_position[0])**2 + (u[1][1] - uav_position[1])**2))
+                
+                # Target the closest user with a task
+                target_user_position = users_with_tasks[0][1]
+                
+                # Find the action that moves closest to the target user
+                def movement_score(action):
+                    target_position = action[0]
+                    distance_to_target = math.sqrt(
+                        (target_position[0] - target_user_position[0])**2 + 
+                        (target_position[1] - target_user_position[1])**2
+                    )
+                    return -distance_to_target  # Negative because we want to minimize distance
+                
+                # With 70% probability, select the best movement action
+                if random.random() < 0.7:
+                    return max(movement_actions, key=movement_score)
+        
+        # Fall back to random selection for exploration
+        return random.choice(possible_actions)
+    
+    def _calculate_immediate_reward(self, old_state: Dict[str, Any], new_state: Dict[str, Any]) -> float:
+        """
+        Calculate immediate reward for transitioning from old state to new state.
+        
+        Args:
+            old_state: State before action
+            new_state: State after action
+            
+        Returns:
+            Immediate reward value
+        """
+        reward = 0.0
+        
+        # Reward for servicing users
+        old_serviced = old_state.get('serviced_tasks', 0)
+        new_serviced = new_state.get('serviced_tasks', 0)
+        if new_serviced > old_serviced:
+            reward += 10.0  # Significant reward for completing a service
+        
+        # Reward for making progress on a service
+        if old_state.get('current_service_user_id') is not None:
+            old_remaining = old_state.get('current_service_task_data_remaining', 0)
+            new_remaining = new_state.get('current_service_task_data_remaining', 0)
+            if old_remaining > new_remaining:
+                reward += (old_remaining - new_remaining) * 0.2  # Small reward for progress
+        
+        # Penalty for energy consumption
+        old_energy = old_state.get('uav_energy', 0)
+        new_energy = new_state.get('uav_energy', 0)
+        energy_used = old_energy - new_energy
+        reward -= energy_used / 1000.0  # Small penalty proportional to energy used
+        
+        # Reward for getting closer to users with tasks
+        uav_old_pos = old_state.get('uav_position', (0, 0))
+        uav_new_pos = new_state.get('uav_position', (0, 0))
+        
+        # Only calculate distance improvement if UAV moved
+        if uav_old_pos != uav_new_pos:
+            distance_improvement = 0.0
+            user_count = 0
+            
+            for user_id, user in new_state.get('users', {}).items():
+                if user.get('has_task', False):
+                    user_pos = user.get('position', (0, 0))
+                    
+                    old_distance = math.sqrt((uav_old_pos[0] - user_pos[0])**2 + (uav_old_pos[1] - user_pos[1])**2)
+                    new_distance = math.sqrt((uav_new_pos[0] - user_pos[0])**2 + (uav_new_pos[1] - user_pos[1])**2)
+                    
+                    # Reward for getting closer, penalty for moving away
+                    distance_improvement += (old_distance - new_distance)
+                    user_count += 1
+            
+            if user_count > 0:
+                reward += (distance_improvement / user_count) * 0.05
         
         return reward
     

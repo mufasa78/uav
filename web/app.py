@@ -19,6 +19,7 @@ from simulation.environment import Environment
 from algorithms.base import PathPlanningAlgorithm
 from algorithms.mcts import MCTSAlgorithm
 from algorithms.rrt import RRTAlgorithm
+from algorithms.astar import AStarAlgorithm
 from utils.config import WORLD_SIZE, NUM_USERS
 
 # Configure logging
@@ -40,7 +41,8 @@ Session(app)
 environment = Environment()
 algorithms = {
     "mcts": MCTSAlgorithm(),
-    "rrt": RRTAlgorithm()
+    "rrt": RRTAlgorithm(),
+    "astar": AStarAlgorithm()
 }
 
 # Set up algorithms
