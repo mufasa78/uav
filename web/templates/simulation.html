@@ -253,84 +253,114 @@
             ctx.fillStyle = 'white';
         });
 
-        // Draw trajectory with arrows
+        // Draw trajectory with arrows - more like the reference image
         if (trajectory && trajectory.length > 1) {
-            // Draw path with arrows
-            for (let i = 0; i < trajectory.length - 1; i += 10) { // Draw fewer arrows for performance
+            // First draw the complete path
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(transformX(trajectory[0][0]), transformY(trajectory[0][1]));
+
+            for (let i = 1; i < trajectory.length; i++) {
+                ctx.lineTo(transformX(trajectory[i][0]), transformY(trajectory[i][1]));
+            }
+
+            ctx.stroke();
+
+            // Then add arrows at selected points
+            // Calculate how many arrows to show (fewer for better performance)
+            const numArrows = Math.min(5, trajectory.length - 1);
+            const step = Math.max(1, Math.floor((trajectory.length - 1) / numArrows));
+
+            for (let i = 0; i < trajectory.length - 1; i += step) {
                 const x1 = trajectory[i][0];
                 const y1 = trajectory[i][1];
                 const x2 = trajectory[i+1][0];
                 const y2 = trajectory[i+1][1];
 
-                // Draw line segment
-                ctx.strokeStyle = 'black';
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                ctx.moveTo(transformX(x1), transformY(y1));
-                ctx.lineTo(transformX(x2), transformY(y2));
-                ctx.stroke();
+                // Calculate direction
+                const dx = x2 - x1;
+                const dy = y2 - y1;
 
-                // Draw arrow
-                const angle = Math.atan2(y2 - y1, x2 - x1);
-                const arrowLength = 15;
-                const arrowWidth = 8;
+                // Calculate angle and length
+                const angle = Math.atan2(dy, dx);
+                const length = Math.sqrt(dx*dx + dy*dy);
 
-                ctx.fillStyle = 'black';
-                ctx.beginPath();
-                ctx.moveTo(transformX(x2), transformY(y2));
-                ctx.lineTo(
-                    transformX(x2) - arrowLength * Math.cos(angle) + arrowWidth * Math.sin(angle),
-                    transformY(y2) + arrowLength * Math.sin(angle) + arrowWidth * Math.cos(angle)
-                );
-                ctx.lineTo(
-                    transformX(x2) - arrowLength * Math.cos(angle) - arrowWidth * Math.sin(angle),
-                    transformY(y2) + arrowLength * Math.sin(angle) - arrowWidth * Math.cos(angle)
-                );
-                ctx.closePath();
-                ctx.fill();
+                // Only draw arrows for segments with sufficient length
+                if (length > 20) {
+                    // Calculate midpoint of the segment
+                    const midX = (x1 + x2) / 2;
+                    const midY = (y1 + y2) / 2;
+
+                    // Fixed arrow size
+                    const arrowLength = 20;
+                    const arrowWidth = 10;
+
+                    // Draw arrow at midpoint
+                    const normDx = dx / length * arrowLength;
+                    const normDy = dy / length * arrowLength;
+
+                    ctx.fillStyle = 'black';
+                    ctx.beginPath();
+                    ctx.moveTo(transformX(midX + normDx/2), transformY(midY + normDy/2));
+                    ctx.lineTo(
+                        transformX(midX - normDx/2 + arrowWidth * Math.sin(angle)),
+                        transformY(midY - normDy/2 - arrowWidth * Math.cos(angle))
+                    );
+                    ctx.lineTo(
+                        transformX(midX - normDx/2 - arrowWidth * Math.sin(angle)),
+                        transformY(midY - normDy/2 + arrowWidth * Math.cos(angle))
+                    );
+                    ctx.closePath();
+                    ctx.fill();
+                }
             }
         }
 
-        // Draw users as stars with dotted connections
+        // Draw users as stars with dotted connections - more like the reference image
         if (users) {
-            // Draw connections between users with tasks
+            // First collect users with tasks
+            const userIds = Object.keys(users);
+            const usersWithTasks = [];
+
+            userIds.forEach(userId => {
+                const user = users[userId];
+                if (user.has_task) {
+                    usersWithTasks.push({
+                        id: userId,
+                        position: user.position
+                    });
+                }
+            });
+
+            // Draw dotted connections between users with tasks in pairs
             ctx.strokeStyle = 'black';
             ctx.lineWidth = 1;
             ctx.setLineDash([5, 5]); // Dotted line
 
-            const userIds = Object.keys(users);
-            for (let i = 0; i < userIds.length; i++) {
-                const userId = userIds[i];
-                const user = users[userId];
+            for (let i = 0; i < usersWithTasks.length - 1; i += 2) {
+                if (i + 1 < usersWithTasks.length) {
+                    const user1 = usersWithTasks[i];
+                    const user2 = usersWithTasks[i + 1];
 
-                if (user.has_task) {
-                    // Find another user to connect to
-                    for (let j = i + 1; j < userIds.length; j++) {
-                        const otherUserId = userIds[j];
-                        const otherUser = users[otherUserId];
-
-                        if (otherUser.has_task) {
-                            // Draw dotted connection
-                            ctx.beginPath();
-                            ctx.moveTo(transformX(user.position[0]), transformY(user.position[1]));
-                            ctx.lineTo(transformX(otherUser.position[0]), transformY(otherUser.position[1]));
-                            ctx.stroke();
-                            break; // Only connect to one other user
-                        }
-                    }
+                    // Draw dotted connection
+                    ctx.beginPath();
+                    ctx.moveTo(transformX(user1.position[0]), transformY(user1.position[1]));
+                    ctx.lineTo(transformX(user2.position[0]), transformY(user2.position[1]));
+                    ctx.stroke();
                 }
             }
 
             // Reset line dash
             ctx.setLineDash([]);
 
-            // Draw users as stars
+            // Draw all users as stars
             userIds.forEach(userId => {
                 const user = users[userId];
                 const position = user.position;
 
-                // Draw star
-                drawStar(ctx, transformX(position[0]), transformY(position[1]), 5, 15, 7);
+                // Draw star with larger size
+                drawStar(ctx, transformX(position[0]), transformY(position[1]), 5, 18, 9);
 
                 // Add user label
                 ctx.fillStyle = 'black';
@@ -338,7 +368,7 @@
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText({% if language == 'zh' %}'用户'{% else %}'User'{% endif %},
-                             transformX(position[0]), transformY(position[1]) - 20);
+                             transformX(position[0]), transformY(position[1]) - 25);
             });
         }
 

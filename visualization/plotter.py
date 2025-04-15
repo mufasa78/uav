@@ -422,10 +422,18 @@ def plot_trajectory_with_users(
         for i, pos in enumerate(fixed_points):
             plt.scatter(pos[0], pos[1], color='black', marker='o', s=150, facecolors='white', edgecolors='black', linewidth=2, zorder=2)
 
-    # Plot UAV trajectory with arrows
+    # Plot UAV trajectory with arrows - more like the reference image
     if trajectory and len(trajectory) > 1:
-        # Plot the path with arrows
-        for i in range(len(trajectory) - 1):
+        # First draw the complete path
+        x_path = [pos[0] for pos in trajectory]
+        y_path = [pos[1] for pos in trajectory]
+        plt.plot(x_path, y_path, 'k-', linewidth=1.5, zorder=2)
+
+        # Then add arrows at selected points
+        # Use fewer arrows for clarity
+        arrow_indices = np.linspace(0, len(trajectory)-2, min(5, len(trajectory)-1), dtype=int)
+
+        for i in arrow_indices:
             # Get current and next position
             x1, y1 = trajectory[i]
             x2, y2 = trajectory[i + 1]
@@ -434,10 +442,19 @@ def plot_trajectory_with_users(
             dx = x2 - x1
             dy = y2 - y1
 
-            # Plot arrow
-            plt.arrow(x1, y1, dx, dy, head_width=20, head_length=30,
-                      fc='black', ec='black', length_includes_head=True,
-                      zorder=3, alpha=0.7)
+            # Normalize direction for arrow
+            length = np.sqrt(dx**2 + dy**2)
+            if length > 0:
+                norm_dx = dx / length * 50  # Fixed arrow length
+                norm_dy = dy / length * 50
+                mid_x = (x1 + x2) / 2
+                mid_y = (y1 + y2) / 2
+
+                # Plot arrow at midpoint of segment
+                plt.arrow(mid_x - norm_dx/2, mid_y - norm_dy/2, norm_dx, norm_dy,
+                          head_width=15, head_length=20,
+                          fc='black', ec='black', length_includes_head=True,
+                          zorder=3, alpha=0.9)
 
         # Plot UAV position (double circle)
         uav_pos = trajectory[-1]
@@ -452,32 +469,44 @@ def plot_trajectory_with_users(
         else:
             plt.text(uav_pos[0] + 30, uav_pos[1] - 30, "UAV", fontsize=12, zorder=5)
 
-    # Plot user positions as stars with dotted connections
+    # First draw dotted connections between users with tasks
     if user_positions:
+        # Draw connections between users with tasks
+        plt.rcParams['lines.linestyle'] = '--'
+
+        # Get users with tasks
+        users_with_tasks = []
+        for user_id, pos in user_positions.items():
+            has_task = user_tasks.get(user_id, False) if user_tasks else False
+            if has_task:
+                users_with_tasks.append((user_id, pos))
+
+        # Connect users with tasks in pairs
+        for i in range(0, len(users_with_tasks)-1, 2):
+            if i+1 < len(users_with_tasks):
+                user1_id, pos1 = users_with_tasks[i]
+                user2_id, pos2 = users_with_tasks[i+1]
+
+                # Draw dotted line connection
+                plt.plot([pos1[0], pos2[0]], [pos1[1], pos2[1]], 'k--', linewidth=1, alpha=0.7, zorder=1)
+
+        # Reset line style
+        plt.rcParams['lines.linestyle'] = '-'
+
+        # Now plot all users as stars
         for user_id, pos in user_positions.items():
             # Determine if user has task
             has_task = user_tasks.get(user_id, False) if user_tasks else False
 
-            # Plot user as star
-            plt.scatter(pos[0], pos[1], marker='*', s=200, color='black', edgecolors='black', linewidth=1, zorder=3)
+            # Draw star with 5 points
+            star_marker = plt.matplotlib.markers.MarkerStyle(marker='*')
+            plt.scatter(pos[0], pos[1], marker=star_marker, s=250, color='black', edgecolors='black', linewidth=1, zorder=3)
 
             # Add user label
             if language == 'Chinese':
                 plt.text(pos[0] - 30, pos[1] - 30, "用户", fontsize=10, zorder=3)
             else:
                 plt.text(pos[0] - 30, pos[1] - 30, "User", fontsize=10, zorder=3)
-
-            # If user has task, connect to another user with dotted line
-            if has_task and len(user_positions) > 1:
-                # Find another user to connect to (not self)
-                other_users = [uid for uid in user_positions.keys() if uid != user_id]
-                if other_users:
-                    # Choose the closest user
-                    other_id = other_users[0]
-                    other_pos = user_positions[other_id]
-
-                    # Draw dotted line connection
-                    plt.plot([pos[0], other_pos[0]], [pos[1], other_pos[1]], 'k--', linewidth=1, alpha=0.7, zorder=1)
 
     # Plot service positions if provided
     if service_positions:
