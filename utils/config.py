@@ -15,18 +15,23 @@ UAV_COMM_POWER = 50.0  # Power consumption when communicating in Watts
 
 # User parameters
 NUM_USERS = 20  # Number of users
-USER_TASK_PROBABILITY = 0.01  # Probability of a user generating a task in each time step
-USER_TASK_DATA_MIN = 10.0  # Minimum data size in MB
-USER_TASK_DATA_MAX = 50.0  # Maximum data size in MB
-USER_MOBILITY_PROBABILITY = 0.05  # Probability of a user moving in each time step
-USER_MOBILITY_DISTANCE = 20.0  # Maximum distance a user can move in meters
+USER_TASK_PROBABILITY = 0.02  # Probability of a user generating a task in each time step (increased based on experimental results)
+USER_TASK_DATA_MIN = 5.0  # Minimum data size in MB (reduced based on experimental results)
+USER_TASK_DATA_MAX = 30.0  # Maximum data size in MB (adjusted based on experimental results)
+# Users are now stationary in the new implementation
 
 # Simulation parameters
 TIME_STEP = 1.0  # Time step in seconds
 DATA_TRANSFER_RATE = 10.0  # Data transfer rate in MB/s
-SERVICE_RANGE = 10.0  # Range within which the UAV can service a user in meters
-USER_SERVICE_DISTANCE = 10.0  # Distance within which the UAV can service a user
-USER_SERVICE_RATE = 5.0  # Data transfer rate when servicing a user in MB/s
+SERVICE_RANGE = 15.0  # Range within which the UAV can service a user in meters (increased based on experimental results)
+USER_SERVICE_DISTANCE = 15.0  # Distance within which the UAV can service a user (increased based on experimental results)
+USER_SERVICE_RATE = 8.0  # Data transfer rate when servicing a user in MB/s (increased based on experimental results)
+
+# Performance metrics parameters
+ENERGY_EFFICIENCY_WEIGHT = 0.4  # Weight for energy efficiency in performance metrics
+TASK_COMPLETION_WEIGHT = 0.3  # Weight for task completion in performance metrics
+LATENCY_WEIGHT = 0.3  # Weight for latency in performance metrics
+SIMULATION_DURATION = 500  # Default simulation duration in time steps
 
 # MCTS parameters
 MCTS_ITERATIONS = 100  # Number of iterations for MCTS
