@@ -394,11 +394,18 @@
 
                 // Update metrics display
                 updateMetrics({
+                    // Basic metrics
                     serviced_tasks: metrics.serviced_tasks,
                     data_processed: metrics.data_processed,
                     energy_consumed: metrics.energy_consumed,
                     total_distance: metrics.total_distance,
-                    remaining_energy: metrics.remaining_energy
+                    remaining_energy: metrics.remaining_energy,
+
+                    // Advanced metrics
+                    energy_efficiency: metrics.energy_efficiency,
+                    task_completion_rate: metrics.task_completion_rate,
+                    avg_service_latency: metrics.avg_service_latency,
+                    performance_score: metrics.performance_score
                 });
 
                 // Update status

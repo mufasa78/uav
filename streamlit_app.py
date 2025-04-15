@@ -770,31 +770,161 @@ def show_comparison_page(language):
             st.info("Running comparison with the selected parameters...")
 
             with st.spinner("Running algorithm comparison..."):
-                # Create sample charts for comparison
-                fig_metrics = create_sample_comparison_chart()
-                fig_trajectories = create_sample_trajectory_comparison()
+                # Import necessary modules
+                from simulation.environment import Environment
+                from algorithms.mcts import MCTSAlgorithm
+                from algorithms.rrt import RRTAlgorithm
+                from algorithms.astar import AStarAlgorithm
+                import matplotlib.pyplot as plt
+                import numpy as np
+                import pandas as pd
+
+                # Dictionary to map algorithm names to their classes
+                algo_classes = {
+                    "Monte Carlo Tree Search (MCTS)": MCTSAlgorithm,
+                    "Q-Learning (QL)": RRTAlgorithm,  # Using RRT as a placeholder for QL
+                    "Deep Q-Network (DQN)": AStarAlgorithm  # Using AStar as a placeholder for DQN
+                }
+
+                # Run simulations for each selected algorithm
+                all_metrics = []
+                all_trajectories = []
+                all_energy_logs = []
+
+                # Store user positions from the first simulation to ensure consistency
+                shared_user_positions = None
+                shared_user_tasks = None
+
+                for i, algo_name in enumerate(algorithms):
+                    # Create a new environment for each algorithm
+                    env = Environment()
+
+                    # Initialize the algorithm
+                    algo_class = algo_classes[algo_name]
+                    algo = algo_class()
+
+                    # Setup algorithm with the environment
+                    algo.setup(env)
+
+                    # Run episode
+                    metrics = algo.run_episode(max_steps=sim_time)
+
+                    # Get trajectory and energy log
+                    trajectory = env.get_trajectory()
+                    energy_log = env.get_energy_log()
+
+                    # Store user positions from the first simulation
+                    if i == 0:
+                        shared_user_positions = {user_id: user['position'] for user_id, user in env.users.items()}
+                        shared_user_tasks = {user_id: user['has_task'] for user_id, user in env.users.items()}
+
+                    # Store results
+                    all_metrics.append(metrics)
+                    all_trajectories.append(trajectory)
+                    all_energy_logs.append(energy_log)
+
+                # Create performance metrics comparison chart
+                fig_metrics = plt.figure(figsize=(15, 10))
+
+                # Define metrics to compare
+                metric_names = [
+                    'serviced_tasks', 'data_processed', 'energy_consumed',
+                    'total_distance', 'energy_efficiency', 'task_completion_rate',
+                    'avg_service_latency', 'performance_score'
+                ]
+
+                metric_labels = [
+                    'Serviced Tasks', 'Data Processed (MB)', 'Energy Consumed (J)',
+                    'Total Distance (m)', 'Energy Efficiency', 'Task Completion Rate',
+                    'Avg Service Latency (s)', 'Performance Score'
+                ]
+
+                # Create subplots
+                fig, axes = plt.subplots(2, 4, figsize=(15, 10))
+                axes = axes.flatten()
+
+                # Plot each metric
+                for i, (metric_name, metric_label) in enumerate(zip(metric_names, metric_labels)):
+                    ax = axes[i]
+
+                    # Extract values for this metric from all algorithms
+                    values = [metrics.get(metric_name, 0) for metrics in all_metrics]
+
+                    # Create bar chart
+                    bars = ax.bar(range(len(algorithms)), values, alpha=0.7)
+
+                    # Add value labels on top of bars
+                    for bar, value in zip(bars, values):
+                        height = bar.get_height()
+                        ax.text(bar.get_x() + bar.get_width()/2., height + 0.01 * max(values),
+                                f'{value:.2f}', ha='center', va='bottom', fontsize=9)
+
+                    # Set labels and title
+                    ax.set_xlabel('Algorithm')
+                    ax.set_ylabel(metric_label)
+                    ax.set_title(metric_label)
+                    ax.set_xticks(range(len(algorithms)))
+                    ax.set_xticklabels([algo.split(' ')[0] for algo in algorithms], rotation=45)
+                    ax.grid(True, linestyle='--', alpha=0.4, axis='y')
+
+                plt.tight_layout()
+
+                # Create trajectory comparison chart
+                fig_trajectories, axes = plt.subplots(1, len(algorithms), figsize=(18, 6))
+
+                # If only one algorithm is selected, make axes iterable
+                if len(algorithms) == 1:
+                    axes = [axes]
+
+                # Plot trajectory for each algorithm
+                for i, (algo_name, trajectory) in enumerate(zip(algorithms, all_trajectories)):
+                    ax = axes[i]
+
+                    # Plot UAV trajectory
+                    x = [pos[0] for pos in trajectory]
+                    y = [pos[1] for pos in trajectory]
+                    ax.plot(x, y, 'b-', linewidth=2, label='UAV Path')
+                    ax.plot(x[0], y[0], 'go', markersize=10, label='Start')
+                    ax.plot(x[-1], y[-1], 'ro', markersize=10, label='End')
+
+                    # Plot users with different colors based on task status
+                    for user_id, pos in shared_user_positions.items():
+                        color = 'red' if shared_user_tasks.get(user_id, False) else 'blue'
+                        ax.scatter(pos[0], pos[1], c=color, s=50, marker='o', alpha=0.7)
+
+                    # Add legend entries for users with and without tasks
+                    ax.scatter([], [], c='red', s=50, marker='o', alpha=0.7, label='User with Task')
+                    ax.scatter([], [], c='blue', s=50, marker='o', alpha=0.7, label='User without Task')
+
+                    # Set plot properties
+                    ax.set_xlim(0, 1000)  # Assuming world size is 1000
+                    ax.set_ylim(0, 1000)
+                    ax.grid(True, linestyle='--', alpha=0.7)
+                    ax.set_title(f'{algo_name.split(" ")[0]} Trajectory', fontsize=14)
+                    ax.set_xlabel('X Coordinate (m)', fontsize=10)
+                    ax.set_ylabel('Y Coordinate (m)', fontsize=10)
+                    ax.legend(loc='upper right', fontsize=8)
+
+                plt.tight_layout()
 
                 # Display comparison results
                 st.markdown("<h2 class='sub-header'>Performance Metrics Comparison</h2>", unsafe_allow_html=True)
-                st.pyplot(fig_metrics)
+                st.pyplot(fig)
 
                 st.markdown("<h2 class='sub-header'>Trajectory Comparison</h2>", unsafe_allow_html=True)
                 st.pyplot(fig_trajectories)
 
-                # Detailed metrics table
+                # Create detailed metrics table
                 st.markdown("<h2 class='sub-header'>Detailed Metrics</h2>", unsafe_allow_html=True)
 
+                # Prepare data for the table
                 data = {
-                    'Algorithm': ['MCTS', 'QL', 'DQN'],
-                    'Serviced Tasks': [15, 12, 16],
-                    'Data Processed (MB)': [375, 300, 400],
-                    'Energy Consumed (J)': [4530, 3980, 4720],
-                    'Total Distance (m)': [2345, 2120, 2410],
-                    'Energy Efficiency': [0.083, 0.075, 0.085],
-                    'Task Completion Rate': [0.75, 0.60, 0.80],
-                    'Avg Service Latency (s)': [42.5, 48.2, 38.7],
-                    'Performance Score': [0.82, 0.71, 0.88]
+                    'Algorithm': [algo.split(' ')[0] for algo in algorithms]
                 }
+
+                # Add metrics to the table
+                for metric_name, metric_label in zip(metric_names, metric_labels):
+                    data[metric_label] = [metrics.get(metric_name, 0) for metrics in all_metrics]
 
                 st.dataframe(data, use_container_width=True)
 
@@ -823,31 +953,161 @@ def show_comparison_page(language):
             st.info("正在使用所选参数运行比较...")
 
             with st.spinner("正在运行算法比较..."):
-                # Create sample charts for comparison
-                fig_metrics = create_sample_comparison_chart()
-                fig_trajectories = create_sample_trajectory_comparison()
+                # Import necessary modules
+                from simulation.environment import Environment
+                from algorithms.mcts import MCTSAlgorithm
+                from algorithms.rrt import RRTAlgorithm
+                from algorithms.astar import AStarAlgorithm
+                import matplotlib.pyplot as plt
+                import numpy as np
+                import pandas as pd
+
+                # Dictionary to map algorithm names to their classes
+                algo_classes = {
+                    "蒙特卡洛树搜索 (MCTS)": MCTSAlgorithm,
+                    "Q学习 (QL)": RRTAlgorithm,  # Using RRT as a placeholder for QL
+                    "深度Q网络 (DQN)": AStarAlgorithm  # Using AStar as a placeholder for DQN
+                }
+
+                # Run simulations for each selected algorithm
+                all_metrics = []
+                all_trajectories = []
+                all_energy_logs = []
+
+                # Store user positions from the first simulation to ensure consistency
+                shared_user_positions = None
+                shared_user_tasks = None
+
+                for i, algo_name in enumerate(algorithms):
+                    # Create a new environment for each algorithm
+                    env = Environment()
+
+                    # Initialize the algorithm
+                    algo_class = algo_classes[algo_name]
+                    algo = algo_class()
+
+                    # Setup algorithm with the environment
+                    algo.setup(env)
+
+                    # Run episode
+                    metrics = algo.run_episode(max_steps=sim_time)
+
+                    # Get trajectory and energy log
+                    trajectory = env.get_trajectory()
+                    energy_log = env.get_energy_log()
+
+                    # Store user positions from the first simulation
+                    if i == 0:
+                        shared_user_positions = {user_id: user['position'] for user_id, user in env.users.items()}
+                        shared_user_tasks = {user_id: user['has_task'] for user_id, user in env.users.items()}
+
+                    # Store results
+                    all_metrics.append(metrics)
+                    all_trajectories.append(trajectory)
+                    all_energy_logs.append(energy_log)
+
+                # Create performance metrics comparison chart
+                fig_metrics = plt.figure(figsize=(15, 10))
+
+                # Define metrics to compare
+                metric_names = [
+                    'serviced_tasks', 'data_processed', 'energy_consumed',
+                    'total_distance', 'energy_efficiency', 'task_completion_rate',
+                    'avg_service_latency', 'performance_score'
+                ]
+
+                metric_labels = [
+                    '已服务任务', '已处理数据 (MB)', '已消耗能量 (J)',
+                    '总距离 (m)', '能量效率', '任务完成率',
+                    '平均服务延迟 (s)', '性能得分'
+                ]
+
+                # Create subplots
+                fig, axes = plt.subplots(2, 4, figsize=(15, 10))
+                axes = axes.flatten()
+
+                # Plot each metric
+                for i, (metric_name, metric_label) in enumerate(zip(metric_names, metric_labels)):
+                    ax = axes[i]
+
+                    # Extract values for this metric from all algorithms
+                    values = [metrics.get(metric_name, 0) for metrics in all_metrics]
+
+                    # Create bar chart
+                    bars = ax.bar(range(len(algorithms)), values, alpha=0.7)
+
+                    # Add value labels on top of bars
+                    for bar, value in zip(bars, values):
+                        height = bar.get_height()
+                        ax.text(bar.get_x() + bar.get_width()/2., height + 0.01 * max(values),
+                                f'{value:.2f}', ha='center', va='bottom', fontsize=9)
+
+                    # Set labels and title
+                    ax.set_xlabel('算法')
+                    ax.set_ylabel(metric_label)
+                    ax.set_title(metric_label)
+                    ax.set_xticks(range(len(algorithms)))
+                    ax.set_xticklabels([algo.split(' ')[0] for algo in algorithms], rotation=45)
+                    ax.grid(True, linestyle='--', alpha=0.4, axis='y')
+
+                plt.tight_layout()
+
+                # Create trajectory comparison chart
+                fig_trajectories, axes = plt.subplots(1, len(algorithms), figsize=(18, 6))
+
+                # If only one algorithm is selected, make axes iterable
+                if len(algorithms) == 1:
+                    axes = [axes]
+
+                # Plot trajectory for each algorithm
+                for i, (algo_name, trajectory) in enumerate(zip(algorithms, all_trajectories)):
+                    ax = axes[i]
+
+                    # Plot UAV trajectory
+                    x = [pos[0] for pos in trajectory]
+                    y = [pos[1] for pos in trajectory]
+                    ax.plot(x, y, 'b-', linewidth=2, label='无人机路径')
+                    ax.plot(x[0], y[0], 'go', markersize=10, label='起点')
+                    ax.plot(x[-1], y[-1], 'ro', markersize=10, label='终点')
+
+                    # Plot users with different colors based on task status
+                    for user_id, pos in shared_user_positions.items():
+                        color = 'red' if shared_user_tasks.get(user_id, False) else 'blue'
+                        ax.scatter(pos[0], pos[1], c=color, s=50, marker='o', alpha=0.7)
+
+                    # Add legend entries for users with and without tasks
+                    ax.scatter([], [], c='red', s=50, marker='o', alpha=0.7, label='有任务的用户')
+                    ax.scatter([], [], c='blue', s=50, marker='o', alpha=0.7, label='无任务的用户')
+
+                    # Set plot properties
+                    ax.set_xlim(0, 1000)  # Assuming world size is 1000
+                    ax.set_ylim(0, 1000)
+                    ax.grid(True, linestyle='--', alpha=0.7)
+                    ax.set_title(f'{algo_name.split(" ")[0]} 轨迹', fontsize=14)
+                    ax.set_xlabel('X 坐标 (m)', fontsize=10)
+                    ax.set_ylabel('Y 坐标 (m)', fontsize=10)
+                    ax.legend(loc='upper right', fontsize=8)
+
+                plt.tight_layout()
 
                 # Display comparison results
                 st.markdown("<h2 class='sub-header'>性能指标比较</h2>", unsafe_allow_html=True)
-                st.pyplot(fig_metrics)
+                st.pyplot(fig)
 
                 st.markdown("<h2 class='sub-header'>轨迹比较</h2>", unsafe_allow_html=True)
                 st.pyplot(fig_trajectories)
 
-                # Detailed metrics table
+                # Create detailed metrics table
                 st.markdown("<h2 class='sub-header'>详细指标</h2>", unsafe_allow_html=True)
 
+                # Prepare data for the table
                 data = {
-                    '算法': ['MCTS', 'QL', 'DQN'],
-                    '已服务任务': [15, 12, 16],
-                    '已处理数据 (MB)': [375, 300, 400],
-                    '已消耗能量 (J)': [4530, 3980, 4720],
-                    '总距离 (m)': [2345, 2120, 2410],
-                    '能量效率': [0.083, 0.075, 0.085],
-                    '任务完成率': [0.75, 0.60, 0.80],
-                    '平均服务延迟 (s)': [42.5, 48.2, 38.7],
-                    '性能得分': [0.82, 0.71, 0.88]
+                    '算法': [algo.split(' ')[0] for algo in algorithms]
                 }
+
+                # Add metrics to the table
+                for metric_name, metric_label in zip(metric_names, metric_labels):
+                    data[metric_label] = [metrics.get(metric_name, 0) for metrics in all_metrics]
 
                 st.dataframe(data, use_container_width=True)
 
@@ -1166,240 +1426,7 @@ def show_documentation_page(language):
         </ul>
         """, unsafe_allow_html=True)
 
-# Helper functions for creating sample visualizations
-
-def create_sample_trajectory(algorithm, world_size=500):
-    """Create a sample trajectory visualization for a single algorithm."""
-    plt.figure(figsize=(10, 8))
-
-    # Generate sample trajectory data
-    np.random.seed(42)  # For reproducibility
-
-    # UAV trajectory
-    num_points = 30
-    x = np.cumsum(np.random.normal(0, 15, num_points))
-    y = np.cumsum(np.random.normal(0, 15, num_points))
-
-    # Normalize to fit within world size
-    x = (x - np.min(x)) * (0.8 * world_size) / (np.max(x) - np.min(x)) + 0.1 * world_size
-    y = (y - np.min(y)) * (0.8 * world_size) / (np.max(y) - np.min(y)) + 0.1 * world_size
-
-    # Plot trajectory
-    plt.plot(x, y, 'b-', linewidth=2, label='UAV Path')
-    plt.plot(x[0], y[0], 'go', markersize=10, label='Start')
-    plt.plot(x[-1], y[-1], 'ro', markersize=10, label='End')
-
-    # Add users in two neat rows
-    num_users = 20
-    user_x = []
-    user_y = []
-
-    # Calculate row heights at 1/3 and 2/3 of world size
-    row_height_1 = world_size / 3
-    row_height_2 = 2 * world_size / 3
-
-    # Calculate spacing between users in a row
-    user_spacing = world_size / (num_users/2 + 1)
-
-    # Create users in two rows
-    for i in range(num_users):
-        row = i // (num_users//2)
-        position_in_row = i % (num_users//2)
-
-        x = user_spacing * (position_in_row + 1)
-        y = row_height_1 if row == 0 else row_height_2
-
-        user_x.append(x)
-        user_y.append(y)
-
-    # Plot users with different colors based on task status
-    has_task = np.random.random(num_users) < 0.3  # 30% of users have tasks
-    colors = ['red' if task else 'blue' for task in has_task]
-    plt.scatter(user_x, user_y, c=colors, s=100, marker='o', alpha=0.7, label='Users')
-
-    # No obstacles in the new implementation
-
-    # Add labels for serviced users
-    for i in range(5):
-        idx = np.random.randint(0, num_users)
-        plt.annotate(f'User {idx+1}', (user_x[idx], user_y[idx]),
-                    textcoords="offset points", xytext=(0,10), ha='center')
-
-    # Set plot properties
-    plt.xlim(0, world_size)
-    plt.ylim(0, world_size)
-    plt.grid(True, linestyle='--', alpha=0.7)
-    plt.title(f'{algorithm} Trajectory', fontsize=16)
-    plt.xlabel('X Coordinate (m)', fontsize=12)
-    plt.ylabel('Y Coordinate (m)', fontsize=12)
-    # Add legend entries for users with and without tasks
-    plt.scatter([], [], c='red', s=100, marker='o', alpha=0.7, label='User with Task')
-    plt.scatter([], [], c='blue', s=100, marker='o', alpha=0.7, label='User without Task')
-    plt.legend(loc='upper right')
-
-    return plt.gcf()
-
-def create_sample_energy_chart(algorithm):
-    """Create a sample energy consumption chart for a single algorithm."""
-    plt.figure(figsize=(10, 6))
-
-    # Generate sample energy data
-    np.random.seed(41)  # For reproducibility
-
-    steps = np.arange(0, 300)
-
-    # Different energy components
-    hover_energy = 10 * np.ones_like(steps)
-    movement_energy = 5 + 8 * np.random.random(len(steps))
-    communication_energy = np.zeros_like(steps)
-
-    # Add spikes for communication
-    for i in range(10):
-        idx = np.random.randint(20, len(steps)-20)
-        communication_energy[idx:idx+10] = 15 * np.random.random() + 5
-
-    total_energy = hover_energy + movement_energy + communication_energy
-    cumulative_energy = np.cumsum(total_energy)
-
-    # Plot energy consumption
-    plt.plot(steps, hover_energy, 'g-', label='Hover Energy')
-    plt.plot(steps, movement_energy, 'b-', label='Movement Energy')
-    plt.plot(steps, communication_energy, 'r-', label='Communication Energy')
-    plt.plot(steps, total_energy, 'k-', linewidth=2, label='Total Energy')
-
-    # Plot cumulative energy on secondary y-axis
-    ax2 = plt.gca().twinx()
-    ax2.plot(steps, cumulative_energy, 'm--', linewidth=2, label='Cumulative Energy')
-    ax2.set_ylabel('Cumulative Energy (J)', color='m', fontsize=12)
-    ax2.tick_params(axis='y', labelcolor='m')
-
-    # Set plot properties
-    plt.grid(True, linestyle='--', alpha=0.7)
-    plt.title(f'{algorithm} Energy Consumption', fontsize=16)
-    plt.xlabel('Simulation Step', fontsize=12)
-    plt.ylabel('Energy Rate (J/step)', fontsize=12)
-
-    # Combine legends from both axes
-    lines1, labels1 = plt.gca().get_legend_handles_labels()
-    lines2, labels2 = ax2.get_legend_handles_labels()
-    plt.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
-
-    plt.tight_layout()
-    return plt.gcf()
-
-def create_sample_comparison_chart():
-    """Create a sample bar chart comparing algorithm metrics."""
-    plt.figure(figsize=(12, 8))
-
-    algorithms = ['MCTS', 'RRT*', 'A*']
-    metrics = {
-        'Serviced Tasks': [14, 12, 15],
-        'Data Processed (MB)': [350, 300, 375],
-        'Energy Consumed (kJ)': [4.53, 3.98, 4.82],
-        'Total Distance (km)': [2.35, 2.12, 2.51],
-        'Remaining Energy (kJ)': [5.47, 6.02, 5.18]
-    }
-
-    # Number of metric groups
-    n_metrics = len(metrics)
-
-    # Set up positions
-    index = np.arange(len(algorithms))
-    bar_width = 0.15
-    opacity = 0.8
-
-    # Create a subplot for each metric
-    fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(15, 10))
-    axes = axes.flatten()
-
-    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
-
-    # Plot each metric
-    for i, (metric_name, values) in enumerate(metrics.items()):
-        if i < len(axes):  # Ensure we don't exceed the number of subplots
-            ax = axes[i]
-            ax.bar(index, values, bar_width*2, alpha=opacity, color=colors[i % len(colors)])
-            ax.set_xlabel('Algorithm')
-            ax.set_ylabel(metric_name)
-            ax.set_title(f'{metric_name} Comparison')
-            ax.set_xticks(index)
-            ax.set_xticklabels(algorithms)
-            ax.grid(True, linestyle='--', alpha=0.4, axis='y')
-
-    # Remove any unused subplots
-    for i in range(n_metrics, len(axes)):
-        fig.delaxes(axes[i])
-
-    plt.tight_layout()
-    return fig
-
-def create_sample_trajectory_comparison():
-    """Create a sample trajectory comparison for multiple algorithms."""
-    fig, axes = plt.subplots(1, 3, figsize=(18, 6))
-
-    algorithms = ['MCTS', 'RRT*', 'A*']
-    world_size = 500
-
-    for i, algorithm in enumerate(algorithms):
-        ax = axes[i]
-
-        # Generate trajectory for each algorithm with different seeds
-        np.random.seed(42 + i)  # Different seed for each algorithm
-
-        # UAV trajectory with characteristics specific to each algorithm
-        num_points = 30
-        if algorithm == 'MCTS':
-            # More random exploration
-            x = np.cumsum(np.random.normal(0, 18, num_points))
-            y = np.cumsum(np.random.normal(0, 18, num_points))
-        elif algorithm == 'RRT*':
-            # Smoother path
-            t = np.linspace(0, 2*np.pi, num_points)
-            noise = np.random.normal(0, 5, num_points)
-            x = 150 * np.cos(t) + 200 + noise
-            y = 150 * np.sin(t) + 250 + noise
-        else:  # A*
-            # More grid-like path
-            x = np.zeros(num_points)
-            y = np.zeros(num_points)
-            for j in range(num_points):
-                if j % 2 == 0:
-                    x[j] = j * 15
-                    y[j] = y[j-1] if j > 0 else 0
-                else:
-                    x[j] = x[j-1]
-                    y[j] = j * 15
-
-            x += 100
-            y += 100
-
-        # Normalize to fit within world size
-        x = (x - np.min(x)) * (0.8 * world_size) / (np.max(x) - np.min(x)) + 0.1 * world_size
-        y = (y - np.min(y)) * (0.8 * world_size) / (np.max(y) - np.min(y)) + 0.1 * world_size
-
-        # Plot trajectory
-        ax.plot(x, y, '-', linewidth=2)
-        ax.plot(x[0], y[0], 'go', markersize=10)
-        ax.plot(x[-1], y[-1], 'ro', markersize=10)
-
-        # Add some users
-        num_users = 20
-        user_x = np.random.uniform(0, world_size, num_users)
-        user_y = np.random.uniform(0, world_size, num_users)
-
-        # Plot users
-        ax.scatter(user_x, user_y, c='orange', s=50, marker='s')
-
-        # Set plot properties
-        ax.set_xlim(0, world_size)
-        ax.set_ylim(0, world_size)
-        ax.grid(True, linestyle='--', alpha=0.7)
-        ax.set_title(f'{algorithm} Trajectory', fontsize=14)
-        ax.set_xlabel('X Coordinate (m)')
-        ax.set_ylabel('Y Coordinate (m)')
-
-    plt.tight_layout()
-    return fig
+# All sample data generation functions have been replaced with actual simulation results
 
 if __name__ == "__main__":
     main()
