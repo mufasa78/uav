@@ -219,8 +219,10 @@ def show_simulation_page(language):
                 from algorithms.rrt import RRTAlgorithm
                 from algorithms.astar import AStarAlgorithm
 
-                # Create environment
+                # Create environment with custom world size
                 env = Environment()
+                # Override the world size with the slider value
+                env.world_size = (world_size, world_size)
 
                 # Initialize the selected algorithm
                 if algorithm == "Monte Carlo Tree Search (MCTS)":
@@ -269,7 +271,7 @@ def show_simulation_page(language):
                     trajectory=trajectory,
                     user_positions=user_positions,
                     user_tasks=user_tasks,
-                    world_size=(env.world_size, env.world_size),
+                    world_size=env.world_size,
                     fixed_points=fixed_points,
                     service_positions=service_positions,
                     title=f"UAV Path Planning Simulation - {algorithm}",
@@ -294,7 +296,7 @@ def show_simulation_page(language):
 
                 # Display trajectory chart
                 st.markdown("<h2 class='sub-header'>UAV Trajectory</h2>", unsafe_allow_html=True)
-                st.pyplot(fig_trajectory)
+                st.image(fig_trajectory, use_container_width=True)
 
                 # Display energy consumption chart
                 st.markdown("<h2 class='sub-header'>Energy Consumption</h2>", unsafe_allow_html=True)
@@ -405,8 +407,10 @@ def show_simulation_page(language):
                 from algorithms.rrt import RRTAlgorithm
                 from algorithms.astar import AStarAlgorithm
 
-                # Create environment
+                # Create environment with custom world size
                 env = Environment()
+                # Override the world size with the slider value
+                env.world_size = (world_size, world_size)
 
                 # Initialize the selected algorithm
                 if algorithm == "蒙特卡洛树搜索 (MCTS)":
@@ -429,36 +433,41 @@ def show_simulation_page(language):
                 user_tasks = {user_id: user['has_task'] for user_id, user in env.users.items()}
 
                 # Create visualizations using actual data
+                from visualization.plotter import plot_trajectory_with_users, plot_energy_consumption
                 import matplotlib.pyplot as plt
+                from io import BytesIO
+                import base64
 
-                # Create trajectory plot
-                fig_trajectory = plt.figure(figsize=(10, 8))
+                # Get service positions (where UAV serviced users)
+                service_positions = []
+                for step_data in env.get_stats_log():
+                    if step_data.get('servicing_user') is not None:
+                        service_positions.append(step_data.get('uav_position'))
 
-                # Plot UAV trajectory
-                x = [pos[0] for pos in trajectory]
-                y = [pos[1] for pos in trajectory]
-                plt.plot(x, y, 'b-', linewidth=2, label="UAV Path")
-                plt.plot(x[0], y[0], 'go', markersize=10, label="Start")
-                plt.plot(x[-1], y[-1], 'ro', markersize=10, label="End")
+                # Generate fixed points from trajectory
+                if trajectory and len(trajectory) > 5:
+                    step = len(trajectory) // 5
+                    fixed_points = [trajectory[i] for i in range(0, len(trajectory), step)]
+                else:
+                    fixed_points = []
 
-                # Plot users with different colors based on task status
-                for user_id, pos in user_positions.items():
-                    color = 'red' if user_tasks.get(user_id, False) else 'blue'
-                    plt.scatter(pos[0], pos[1], c=color, s=100, marker='o', alpha=0.7)
-                    plt.annotate(f"User {user_id}", (pos[0], pos[1]), textcoords="offset points", xytext=(0,10), ha='center')
+                # Generate the plot using our enhanced visualization function
+                trajectory_plot_base64 = plot_trajectory_with_users(
+                    trajectory=trajectory,
+                    user_positions=user_positions,
+                    user_tasks=user_tasks,
+                    world_size=env.world_size,
+                    fixed_points=fixed_points,
+                    service_positions=service_positions,
+                    title=f"无人机路径规划模拟 - {algorithm}",
+                    language="Chinese"
+                )
 
-                # Add legend entries for users with and without tasks
-                plt.scatter([], [], c='red', s=100, marker='o', alpha=0.7, label='有任务的用户')
-                plt.scatter([], [], c='blue', s=100, marker='o', alpha=0.7, label='无任务的用户')
-
-                # Set plot properties
-                plt.xlim(0, env.world_size[0])
-                plt.ylim(0, env.world_size[1])
-                plt.grid(True, linestyle='--', alpha=0.7)
-                plt.title(f'{algorithm} 轨迹', fontsize=16)
-                plt.xlabel('X 坐标 (m)', fontsize=12)
-                plt.ylabel('Y 坐标 (m)', fontsize=12)
-                plt.legend(loc='upper right')
+                # Convert base64 to image
+                from PIL import Image
+                import io
+                img_data = base64.b64decode(trajectory_plot_base64)
+                fig_trajectory = Image.open(io.BytesIO(img_data))
 
                 # Create energy plot
                 fig_energy = plt.figure(figsize=(10, 6))
@@ -803,8 +812,10 @@ def show_comparison_page(language):
                 shared_user_tasks = None
 
                 for i, algo_name in enumerate(algorithms):
-                    # Create a new environment for each algorithm
+                    # Create a new environment for each algorithm with custom world size
                     env = Environment()
+                    # Override the world size with the slider value
+                    env.world_size = (world_size, world_size)
 
                     # Initialize the algorithm
                     algo_class = algo_classes[algo_name]
@@ -986,8 +997,10 @@ def show_comparison_page(language):
                 shared_user_tasks = None
 
                 for i, algo_name in enumerate(algorithms):
-                    # Create a new environment for each algorithm
+                    # Create a new environment for each algorithm with custom world size
                     env = Environment()
+                    # Override the world size with the slider value
+                    env.world_size = (world_size, world_size)
 
                     # Initialize the algorithm
                     algo_class = algo_classes[algo_name]
