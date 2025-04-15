@@ -49,10 +49,10 @@
                     </form>
                 </div>
             </div>
-            
-            <div class="card metrics-card">
+
+            <div class="card metrics-card mb-3">
                 <div class="card-header">
-                    <h5 class="card-title mb-0">{% if language == 'zh' %}模拟指标{% else %}Simulation Metrics{% endif %}</h5>
+                    <h5 class="card-title mb-0">{% if language == 'zh' %}基本指标{% else %}Basic Metrics{% endif %}</h5>
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
@@ -77,9 +77,33 @@
                     </div>
                 </div>
             </div>
+
+            <div class="card metrics-card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">{% if language == 'zh' %}高级指标{% else %}Advanced Metrics{% endif %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="metric-value" id="energy-efficiency">0.000</div>
+                        <div class="metric-label">{% if language == 'zh' %}能量效率{% else %}Energy Efficiency{% endif %}</div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="metric-value" id="task-completion-rate">0.00</div>
+                        <div class="metric-label">{% if language == 'zh' %}任务完成率{% else %}Task Completion Rate{% endif %}</div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="metric-value" id="avg-service-latency">0.0 s</div>
+                        <div class="metric-label">{% if language == 'zh' %}平均服务延迟{% else %}Avg Service Latency{% endif %}</div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="metric-value" id="performance-score">0.00</div>
+                        <div class="metric-label">{% if language == 'zh' %}性能得分{% else %}Performance Score{% endif %}</div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-    
+
     <div class="col-lg-9">
         <div class="card">
             <div class="card-header">
@@ -89,12 +113,12 @@
                 <div class="canvas-container">
                     <canvas id="trajectory-canvas"></canvas>
                 </div>
-                
+
                 <h5 class="mt-4">{% if language == 'zh' %}能量消耗随时间变化{% else %}Energy Consumption Over Time{% endif %}</h5>
                 <div class="canvas-container">
                     <canvas id="energy-canvas"></canvas>
                 </div>
-                
+
                 <div class="alert alert-info mt-3 d-none" id="simulation-status">
                     {% if language == 'zh' %}模拟运行中...{% else %}Simulation running...{% endif %}
                 </div>
@@ -109,15 +133,15 @@
     // Constants
     const WORLD_SIZE = [{{ world_size[0] }}, {{ world_size[1] }}];
     const NUM_USERS = {{ num_users }};
-    
+
     // Canvas and Chart setup
     let trajectoryCtx = document.getElementById('trajectory-canvas').getContext('2d');
     let energyCtx = document.getElementById('energy-canvas').getContext('2d');
-    
+
     let trajectoryCanvas = document.getElementById('trajectory-canvas');
     trajectoryCanvas.width = trajectoryCanvas.parentNode.clientWidth;
     trajectoryCanvas.height = 500;
-    
+
     let energyChart = new Chart(energyCtx, {
         type: 'line',
         data: {
@@ -150,67 +174,67 @@
             }
         }
     });
-    
+
     // Draw functions
     function drawTrajectory(trajectory, users, uavPosition) {
         const ctx = trajectoryCtx;
         const canvas = trajectoryCanvas;
         const width = canvas.width;
         const height = canvas.height;
-        
+
         // Clear canvas
         ctx.clearRect(0, 0, width, height);
-        
+
         // Scale factors
         const scaleX = width / WORLD_SIZE[0];
         const scaleY = height / WORLD_SIZE[1];
-        
+
         // Transform real-world coordinates to canvas coordinates
         function transformX(x) {
             return x * scaleX;
         }
-        
+
         function transformY(y) {
             return height - y * scaleY;
         }
-        
+
         // Draw world boundary
         ctx.strokeStyle = 'rgba(150, 150, 150, 0.5)';
         ctx.lineWidth = 1;
         ctx.strokeRect(0, 0, width, height);
-        
+
         // Draw grid
         const gridSize = 100;
         ctx.strokeStyle = 'rgba(100, 100, 100, 0.2)';
         ctx.lineWidth = 0.5;
-        
+
         for (let x = 0; x <= WORLD_SIZE[0]; x += gridSize) {
             ctx.beginPath();
             ctx.moveTo(transformX(x), 0);
             ctx.lineTo(transformX(x), height);
             ctx.stroke();
         }
-        
+
         for (let y = 0; y <= WORLD_SIZE[1]; y += gridSize) {
             ctx.beginPath();
             ctx.moveTo(0, transformY(y));
             ctx.lineTo(width, transformY(y));
             ctx.stroke();
         }
-        
+
         // Draw trajectory
         if (trajectory && trajectory.length > 0) {
             ctx.strokeStyle = 'rgba(0, 123, 255, 0.7)';
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.moveTo(transformX(trajectory[0][0]), transformY(trajectory[0][1]));
-            
+
             for (let i = 1; i < trajectory.length; i++) {
                 ctx.lineTo(transformX(trajectory[i][0]), transformY(trajectory[i][1]));
             }
-            
+
             ctx.stroke();
-            
+
             // Draw points on trajectory
             ctx.fillStyle = 'rgba(0, 123, 255, 0.5)';
             for (let i = 0; i < trajectory.length; i++) {
@@ -219,19 +243,19 @@
                 ctx.fill();
             }
         }
-        
+
         // Draw users
         if (users) {
             Object.keys(users).forEach(userId => {
                 const user = users[userId];
                 const position = user.position;
                 const hasTask = user.has_task;
-                
+
                 ctx.fillStyle = hasTask ? 'rgba(255, 0, 0, 0.7)' : 'rgba(0, 200, 0, 0.7)';
                 ctx.beginPath();
                 ctx.arc(transformX(position[0]), transformY(position[1]), 8, 0, Math.PI * 2);
                 ctx.fill();
-                
+
                 // Draw user ID
                 ctx.fillStyle = 'white';
                 ctx.font = '10px Arial';
@@ -240,14 +264,14 @@
                 ctx.fillText(userId.toString(), transformX(position[0]), transformY(position[1]));
             });
         }
-        
+
         // Draw UAV
         if (uavPosition) {
             ctx.fillStyle = 'rgba(255, 165, 0, 0.9)';
             ctx.beginPath();
             ctx.arc(transformX(uavPosition[0]), transformY(uavPosition[1]), 10, 0, Math.PI * 2);
             ctx.fill();
-            
+
             // Draw UAV symbol
             ctx.strokeStyle = 'white';
             ctx.lineWidth = 2;
@@ -259,27 +283,34 @@
             ctx.stroke();
         }
     }
-    
+
     function updateEnergyChart(energyLog) {
         if (!energyLog || energyLog.length === 0) {
             return;
         }
-        
+
         const labels = Array.from({ length: energyLog.length }, (_, i) => i);
-        
+
         energyChart.data.labels = labels;
         energyChart.data.datasets[0].data = energyLog;
         energyChart.update();
     }
-    
+
     function updateMetrics(metrics) {
+        // Basic metrics
         document.getElementById('serviced-tasks').textContent = metrics.serviced_tasks || 0;
         document.getElementById('data-processed').textContent = `${(metrics.data_processed || 0).toFixed(2)} MB`;
         document.getElementById('energy-consumed').textContent = `${(metrics.energy_consumed || 0).toFixed(2)} J`;
         document.getElementById('total-distance').textContent = `${(metrics.total_distance || 0).toFixed(2)} m`;
         document.getElementById('remaining-energy').textContent = `${(metrics.remaining_energy || 0).toFixed(2)} J`;
+
+        // Advanced metrics
+        document.getElementById('energy-efficiency').textContent = `${(metrics.energy_efficiency || 0).toFixed(3)}`;
+        document.getElementById('task-completion-rate').textContent = `${(metrics.task_completion_rate || 0).toFixed(2)}`;
+        document.getElementById('avg-service-latency').textContent = `${(metrics.avg_service_latency || 0).toFixed(1)} s`;
+        document.getElementById('performance-score').textContent = `${(metrics.performance_score || 0).toFixed(2)}`;
     }
-    
+
     // Event Listeners
     document.getElementById('reset-btn').addEventListener('click', function() {
         fetch('/api/reset', {
@@ -296,27 +327,34 @@
                 energyChart.data.labels = [];
                 energyChart.data.datasets[0].data = [];
                 energyChart.update();
-                
+
                 // Reset metrics
                 updateMetrics({
+                    // Basic metrics
                     serviced_tasks: 0,
                     data_processed: 0,
                     energy_consumed: 0,
                     total_distance: 0,
-                    remaining_energy: 10000
+                    remaining_energy: 10000,
+
+                    // Advanced metrics
+                    energy_efficiency: 0,
+                    task_completion_rate: 0,
+                    avg_service_latency: 0,
+                    performance_score: 0
                 });
-                
+
                 // Draw empty world
                 drawTrajectory([], {}, [500, 500]);
             }
         })
         .catch(error => console.error('Error resetting simulation:', error));
     });
-    
+
     document.getElementById('run-btn').addEventListener('click', function() {
         const algorithm = document.getElementById('algorithm').value;
         const maxSteps = parseInt(document.getElementById('max-steps').value);
-        
+
         // Show status
         const statusEl = document.getElementById('simulation-status');
         {% if language == 'zh' %}
@@ -325,10 +363,10 @@
         statusEl.textContent = `Running simulation with ${algorithm.toUpperCase()} algorithm...`;
         {% endif %}
         statusEl.classList.remove('d-none');
-        
+
         // Disable run button
         this.disabled = true;
-        
+
         fetch('/api/run', {
             method: 'POST',
             headers: {
@@ -343,17 +381,17 @@
         .then(data => {
             if (data.status === 'success') {
                 const metrics = data.metrics;
-                
+
                 // Update trajectory visualization
                 drawTrajectory(
-                    metrics.trajectory, 
+                    metrics.trajectory,
                     metrics.stats_log[metrics.stats_log.length - 1].users,
                     metrics.trajectory[metrics.trajectory.length - 1]
                 );
-                
+
                 // Update energy chart
                 updateEnergyChart(metrics.energy_log);
-                
+
                 // Update metrics display
                 updateMetrics({
                     serviced_tasks: metrics.serviced_tasks,
@@ -362,7 +400,7 @@
                     total_distance: metrics.total_distance,
                     remaining_energy: metrics.remaining_energy
                 });
-                
+
                 // Update status
                 {% if language == 'zh' %}
                 statusEl.textContent = `模拟完成。结果保存为 ${data.filename}。`;
@@ -396,7 +434,7 @@
             this.disabled = false;
         });
     });
-    
+
     // Initial draw
     drawTrajectory([], {}, [500, 500]);
 </script>

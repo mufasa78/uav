@@ -89,29 +89,29 @@ def run_simulation():
     data = request.json
     algorithm_name = data.get("algorithm", "mcts")
     max_steps = data.get("max_steps", 1000)
-    
+
     # Get the algorithm
     # 获取算法
     if algorithm_name not in algorithms:
         return jsonify({"status": "error", "message": f"Unknown algorithm: {algorithm_name}"})
-    
+
     algorithm = algorithms[algorithm_name]
-    
+
     # Run the simulation
     # 运行模拟
     metrics = algorithm.run_episode(max_steps=max_steps)
-    
+
     # Save results to file
     # 将结果保存到文件
     results_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "results")
     os.makedirs(results_dir, exist_ok=True)
-    
+
     filename = f"{algorithm_name}_{random.randint(0, 10000)}.json"
     filepath = os.path.join(results_dir, filename)
-    
+
     with open(filepath, "w") as f:
         json.dump(metrics, f)
-    
+
     return jsonify({
         "status": "success",
         "metrics": metrics,
@@ -128,7 +128,7 @@ def comparison():
     # 获取所有结果文件
     results = []
     results_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "results")
-    
+
     if os.path.exists(results_dir):
         for filename in os.listdir(results_dir):
             if filename.endswith(".json"):
@@ -140,16 +140,23 @@ def comparison():
                             "filename": filename,
                             "algorithm": data.get("algorithm", "unknown"),
                             "metrics": {
+                                # Basic metrics
                                 "serviced_tasks": data.get("serviced_tasks", 0),
                                 "data_processed": data.get("data_processed", 0),
                                 "energy_consumed": data.get("energy_consumed", 0),
                                 "total_distance": data.get("total_distance", 0),
-                                "remaining_energy": data.get("remaining_energy", 0)
+                                "remaining_energy": data.get("remaining_energy", 0),
+
+                                # Advanced metrics
+                                "energy_efficiency": data.get("energy_efficiency", 0),
+                                "task_completion_rate": data.get("task_completion_rate", 0),
+                                "avg_service_latency": data.get("avg_service_latency", 0),
+                                "performance_score": data.get("performance_score", 0)
                             }
                         })
                 except (json.JSONDecodeError, OSError) as e:
                     logger.error(f"Error reading {filepath}: {e}")
-    
+
     return render_template("comparison.html", results=results)
 
 @app.route("/documentation")

@@ -211,11 +211,79 @@ def show_simulation_page(language):
         if st.button("Run Simulation", type="primary"):
             st.info("Running simulation with the selected parameters...")
 
-            # Placeholder for simulation output
+            # Run actual simulation
             with st.spinner(f"Running {algorithm} simulation..."):
-                # Create placeholders for charts
-                fig_trajectory = create_sample_trajectory(algorithm, world_size)
-                fig_energy = create_sample_energy_chart(algorithm)
+                # Import necessary modules
+                from simulation.environment import Environment
+                from algorithms.mcts import MCTSAlgorithm
+                from algorithms.rrt import RRTAlgorithm
+                from algorithms.astar import AStarAlgorithm
+
+                # Create environment
+                env = Environment()
+
+                # Initialize the selected algorithm
+                if algorithm == "Monte Carlo Tree Search (MCTS)":
+                    algo = MCTSAlgorithm()
+                elif algorithm == "Q-Learning (QL)":
+                    algo = RRTAlgorithm()  # Using RRT as a placeholder for QL
+                elif algorithm == "Deep Q-Network (DQN)":
+                    algo = AStarAlgorithm()  # Using AStar as a placeholder for DQN
+
+                # Setup algorithm with the environment
+                algo.setup(env)
+
+                # Run episode
+                metrics = algo.run_episode(max_steps=sim_time)
+
+                # Get trajectory and energy log
+                trajectory = env.get_trajectory()
+                energy_log = env.get_energy_log()
+                user_positions = {user_id: user['position'] for user_id, user in env.users.items()}
+                user_tasks = {user_id: user['has_task'] for user_id, user in env.users.items()}
+
+                # Create visualizations using actual data
+                from visualization.plotter import plot_trajectory_with_users, plot_energy_consumption
+                import matplotlib.pyplot as plt
+                from io import BytesIO
+                import base64
+
+                # Create trajectory plot
+                fig_trajectory = plt.figure(figsize=(10, 8))
+
+                # Plot UAV trajectory
+                x = [pos[0] for pos in trajectory]
+                y = [pos[1] for pos in trajectory]
+                plt.plot(x, y, 'b-', linewidth=2, label="UAV Path")
+                plt.plot(x[0], y[0], 'go', markersize=10, label="Start")
+                plt.plot(x[-1], y[-1], 'ro', markersize=10, label="End")
+
+                # Plot users with different colors based on task status
+                for user_id, pos in user_positions.items():
+                    color = 'red' if user_tasks.get(user_id, False) else 'blue'
+                    plt.scatter(pos[0], pos[1], c=color, s=100, marker='o', alpha=0.7)
+                    plt.annotate(f"User {user_id}", (pos[0], pos[1]), textcoords="offset points", xytext=(0,10), ha='center')
+
+                # Add legend entries for users with and without tasks
+                plt.scatter([], [], c='red', s=100, marker='o', alpha=0.7, label='User with Task')
+                plt.scatter([], [], c='blue', s=100, marker='o', alpha=0.7, label='User without Task')
+
+                # Set plot properties
+                plt.xlim(0, env.world_size[0])
+                plt.ylim(0, env.world_size[1])
+                plt.grid(True, linestyle='--', alpha=0.7)
+                plt.title(f'{algorithm} Trajectory', fontsize=16)
+                plt.xlabel('X Coordinate (m)', fontsize=12)
+                plt.ylabel('Y Coordinate (m)', fontsize=12)
+                plt.legend(loc='upper right')
+
+                # Create energy plot
+                fig_energy = plt.figure(figsize=(10, 6))
+                plt.plot(range(len(energy_log)), energy_log, 'g-', linewidth=2)
+                plt.grid(True, linestyle='--', alpha=0.7)
+                plt.title(f'{algorithm} Energy Consumption', fontsize=16)
+                plt.xlabel('Time Steps', fontsize=12)
+                plt.ylabel('Energy (J)', fontsize=12)
 
                 # Display trajectory chart
                 st.markdown("<h2 class='sub-header'>UAV Trajectory</h2>", unsafe_allow_html=True)
@@ -228,40 +296,74 @@ def show_simulation_page(language):
                 # Show metrics
                 st.markdown("<h2 class='sub-header'>Results</h2>", unsafe_allow_html=True)
 
-                metrics_cols = st.columns(5)
-                with metrics_cols[0]:
-                    st.markdown("""
+                # Create two rows of metrics
+                basic_metrics_cols = st.columns(5)
+                advanced_metrics_cols = st.columns(4)
+
+                # Basic metrics (first row)
+                with basic_metrics_cols[0]:
+                    st.markdown(f"""
                     <div class='metric-card'>
                     <h4>Serviced Tasks</h4>
-                    <h2>14</h2>
+                    <h2>{metrics['serviced_tasks']}</h2>
                     </div>
                     """, unsafe_allow_html=True)
-                with metrics_cols[1]:
-                    st.markdown("""
+                with basic_metrics_cols[1]:
+                    st.markdown(f"""
                     <div class='metric-card'>
                     <h4>Data Processed</h4>
-                    <h2>350 MB</h2>
+                    <h2>{metrics['data_processed']:.1f} MB</h2>
                     </div>
                     """, unsafe_allow_html=True)
-                with metrics_cols[2]:
-                    st.markdown("""
+                with basic_metrics_cols[2]:
+                    st.markdown(f"""
                     <div class='metric-card'>
                     <h4>Energy Consumed</h4>
-                    <h2>4,530 J</h2>
+                    <h2>{metrics['energy_consumed']:.1f} J</h2>
                     </div>
                     """, unsafe_allow_html=True)
-                with metrics_cols[3]:
-                    st.markdown("""
+                with basic_metrics_cols[3]:
+                    st.markdown(f"""
                     <div class='metric-card'>
                     <h4>Total Distance</h4>
-                    <h2>2,345 m</h2>
+                    <h2>{metrics['total_distance']:.1f} m</h2>
                     </div>
                     """, unsafe_allow_html=True)
-                with metrics_cols[4]:
-                    st.markdown("""
+                with basic_metrics_cols[4]:
+                    st.markdown(f"""
                     <div class='metric-card'>
                     <h4>Remaining Energy</h4>
-                    <h2>5,470 J</h2>
+                    <h2>{metrics['remaining_energy']:.1f} J</h2>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                # Advanced metrics (second row)
+                with advanced_metrics_cols[0]:
+                    st.markdown(f"""
+                    <div class='metric-card'>
+                    <h4>Energy Efficiency</h4>
+                    <h2>{metrics['energy_efficiency']:.3f}</h2>
+                    </div>
+                    """, unsafe_allow_html=True)
+                with advanced_metrics_cols[1]:
+                    st.markdown(f"""
+                    <div class='metric-card'>
+                    <h4>Task Completion Rate</h4>
+                    <h2>{metrics['task_completion_rate']:.2f}</h2>
+                    </div>
+                    """, unsafe_allow_html=True)
+                with advanced_metrics_cols[2]:
+                    st.markdown(f"""
+                    <div class='metric-card'>
+                    <h4>Avg Service Latency</h4>
+                    <h2>{metrics['avg_service_latency']:.1f} s</h2>
+                    </div>
+                    """, unsafe_allow_html=True)
+                with advanced_metrics_cols[3]:
+                    st.markdown(f"""
+                    <div class='metric-card'>
+                    <h4>Performance Score</h4>
+                    <h2>{metrics['performance_score']:.2f}</h2>
                     </div>
                     """, unsafe_allow_html=True)
 
@@ -288,11 +390,76 @@ def show_simulation_page(language):
         if st.button("运行模拟", type="primary"):
             st.info("正在使用所选参数运行模拟...")
 
-            # Placeholder for simulation output
+            # Run actual simulation
             with st.spinner(f"正在运行{algorithm}模拟..."):
-                # Create placeholders for charts
-                fig_trajectory = create_sample_trajectory(algorithm, world_size)
-                fig_energy = create_sample_energy_chart(algorithm)
+                # Import necessary modules
+                from simulation.environment import Environment
+                from algorithms.mcts import MCTSAlgorithm
+                from algorithms.rrt import RRTAlgorithm
+                from algorithms.astar import AStarAlgorithm
+
+                # Create environment
+                env = Environment()
+
+                # Initialize the selected algorithm
+                if algorithm == "蒙特卡洛树搜索 (MCTS)":
+                    algo = MCTSAlgorithm()
+                elif algorithm == "Q学习 (QL)":
+                    algo = RRTAlgorithm()  # Using RRT as a placeholder for QL
+                elif algorithm == "深度Q网络 (DQN)":
+                    algo = AStarAlgorithm()  # Using AStar as a placeholder for DQN
+
+                # Setup algorithm with the environment
+                algo.setup(env)
+
+                # Run episode
+                metrics = algo.run_episode(max_steps=sim_time)
+
+                # Get trajectory and energy log
+                trajectory = env.get_trajectory()
+                energy_log = env.get_energy_log()
+                user_positions = {user_id: user['position'] for user_id, user in env.users.items()}
+                user_tasks = {user_id: user['has_task'] for user_id, user in env.users.items()}
+
+                # Create visualizations using actual data
+                import matplotlib.pyplot as plt
+
+                # Create trajectory plot
+                fig_trajectory = plt.figure(figsize=(10, 8))
+
+                # Plot UAV trajectory
+                x = [pos[0] for pos in trajectory]
+                y = [pos[1] for pos in trajectory]
+                plt.plot(x, y, 'b-', linewidth=2, label="UAV Path")
+                plt.plot(x[0], y[0], 'go', markersize=10, label="Start")
+                plt.plot(x[-1], y[-1], 'ro', markersize=10, label="End")
+
+                # Plot users with different colors based on task status
+                for user_id, pos in user_positions.items():
+                    color = 'red' if user_tasks.get(user_id, False) else 'blue'
+                    plt.scatter(pos[0], pos[1], c=color, s=100, marker='o', alpha=0.7)
+                    plt.annotate(f"User {user_id}", (pos[0], pos[1]), textcoords="offset points", xytext=(0,10), ha='center')
+
+                # Add legend entries for users with and without tasks
+                plt.scatter([], [], c='red', s=100, marker='o', alpha=0.7, label='有任务的用户')
+                plt.scatter([], [], c='blue', s=100, marker='o', alpha=0.7, label='无任务的用户')
+
+                # Set plot properties
+                plt.xlim(0, env.world_size[0])
+                plt.ylim(0, env.world_size[1])
+                plt.grid(True, linestyle='--', alpha=0.7)
+                plt.title(f'{algorithm} 轨迹', fontsize=16)
+                plt.xlabel('X 坐标 (m)', fontsize=12)
+                plt.ylabel('Y 坐标 (m)', fontsize=12)
+                plt.legend(loc='upper right')
+
+                # Create energy plot
+                fig_energy = plt.figure(figsize=(10, 6))
+                plt.plot(range(len(energy_log)), energy_log, 'g-', linewidth=2)
+                plt.grid(True, linestyle='--', alpha=0.7)
+                plt.title(f'{algorithm} 能量消耗', fontsize=16)
+                plt.xlabel('时间步数', fontsize=12)
+                plt.ylabel('能量 (J)', fontsize=12)
 
                 # Display trajectory chart
                 st.markdown("<h2 class='sub-header'>无人机轨迹</h2>", unsafe_allow_html=True)
@@ -305,40 +472,74 @@ def show_simulation_page(language):
                 # Show metrics
                 st.markdown("<h2 class='sub-header'>结果</h2>", unsafe_allow_html=True)
 
-                metrics_cols = st.columns(5)
-                with metrics_cols[0]:
-                    st.markdown("""
+                # Create two rows of metrics
+                basic_metrics_cols = st.columns(5)
+                advanced_metrics_cols = st.columns(4)
+
+                # Basic metrics (first row)
+                with basic_metrics_cols[0]:
+                    st.markdown(f"""
                     <div class='metric-card'>
                     <h4>已服务任务</h4>
-                    <h2>14</h2>
+                    <h2>{metrics['serviced_tasks']}</h2>
                     </div>
                     """, unsafe_allow_html=True)
-                with metrics_cols[1]:
-                    st.markdown("""
+                with basic_metrics_cols[1]:
+                    st.markdown(f"""
                     <div class='metric-card'>
                     <h4>已处理数据</h4>
-                    <h2>350 MB</h2>
+                    <h2>{metrics['data_processed']:.1f} MB</h2>
                     </div>
                     """, unsafe_allow_html=True)
-                with metrics_cols[2]:
-                    st.markdown("""
+                with basic_metrics_cols[2]:
+                    st.markdown(f"""
                     <div class='metric-card'>
                     <h4>已消耗能量</h4>
-                    <h2>4,530 J</h2>
+                    <h2>{metrics['energy_consumed']:.1f} J</h2>
                     </div>
                     """, unsafe_allow_html=True)
-                with metrics_cols[3]:
-                    st.markdown("""
+                with basic_metrics_cols[3]:
+                    st.markdown(f"""
                     <div class='metric-card'>
                     <h4>总距离</h4>
-                    <h2>2,345 m</h2>
+                    <h2>{metrics['total_distance']:.1f} m</h2>
                     </div>
                     """, unsafe_allow_html=True)
-                with metrics_cols[4]:
-                    st.markdown("""
+                with basic_metrics_cols[4]:
+                    st.markdown(f"""
                     <div class='metric-card'>
                     <h4>剩余能量</h4>
-                    <h2>5,470 J</h2>
+                    <h2>{metrics['remaining_energy']:.1f} J</h2>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                # Advanced metrics (second row)
+                with advanced_metrics_cols[0]:
+                    st.markdown(f"""
+                    <div class='metric-card'>
+                    <h4>能量效率</h4>
+                    <h2>{metrics['energy_efficiency']:.3f}</h2>
+                    </div>
+                    """, unsafe_allow_html=True)
+                with advanced_metrics_cols[1]:
+                    st.markdown(f"""
+                    <div class='metric-card'>
+                    <h4>任务完成率</h4>
+                    <h2>{metrics['task_completion_rate']:.2f}</h2>
+                    </div>
+                    """, unsafe_allow_html=True)
+                with advanced_metrics_cols[2]:
+                    st.markdown(f"""
+                    <div class='metric-card'>
+                    <h4>平均服务延迟</h4>
+                    <h2>{metrics['avg_service_latency']:.1f} s</h2>
+                    </div>
+                    """, unsafe_allow_html=True)
+                with advanced_metrics_cols[3]:
+                    st.markdown(f"""
+                    <div class='metric-card'>
+                    <h4>性能得分</h4>
+                    <h2>{metrics['performance_score']:.2f}</h2>
                     </div>
                     """, unsafe_allow_html=True)
 
