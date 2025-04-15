@@ -380,67 +380,155 @@ def plot_advanced_comparison(
 
 def plot_trajectory_with_users(
     trajectory: List[Tuple[float, float]],
-    user_positions: List[Tuple[float, float]],  # Changed to accept static user positions
-    user_tasks: Dict[int, bool] = None,  # Added parameter for user task status
+    user_positions: Dict[int, Tuple[float, float]],
+    user_tasks: Dict[int, bool] = None,
     world_size: Tuple[float, float] = (1000, 1000),
+    fixed_points: Optional[List[Tuple[float, float]]] = None,
     service_positions: Optional[List[Tuple[float, float]]] = None,
-    title: str = "UAV Trajectory with Users"
+    title: str = "UAV Path Planning Simulation",
+    language: str = "English"
 ) -> str:
     """
-    Plot the UAV trajectory with user positions in the new two-row layout.
+    Plot the UAV trajectory with users and fixed points in a style matching the reference image.
 
     Args:
         trajectory: List of UAV (x, y) positions
         user_positions: Dictionary of user positions {user_id: (x, y)}
         user_tasks: Dictionary of user task status {user_id: has_task}
         world_size: Size of the world in meters
+        fixed_points: List of fixed points (waypoints) for the UAV
         service_positions: List of positions where the UAV serviced users
         title: Title of the plot
+        language: Language for labels ('English' or 'Chinese')
 
     Returns:
         Base64 encoded PNG image
     """
     fig = plt.figure(figsize=(12, 9))
+    plt.rcParams['font.sans-serif'] = ['SimHei'] if language == 'Chinese' else ['Arial']
+    plt.rcParams['axes.unicode_minus'] = False
 
-    # Plot UAV trajectory
-    if trajectory:
-        x = [pos[0] for pos in trajectory]
-        y = [pos[1] for pos in trajectory]
-        plt.plot(x, y, 'b-', linewidth=2, label="UAV Path")
+    # Create fixed points if not provided
+    if fixed_points is None:
+        # Generate some fixed points along the trajectory
+        if trajectory and len(trajectory) > 5:
+            step = len(trajectory) // 5
+            fixed_points = [trajectory[i] for i in range(0, len(trajectory), step)]
+        else:
+            fixed_points = []
 
-        # Plot start and end points
-        plt.scatter(x[0], y[0], color='green', marker='o', s=100, label="Start")
-        plt.scatter(x[-1], y[-1], color='red', marker='x', s=100, label="End")
+    # Plot fixed points (circles)
+    if fixed_points:
+        for i, pos in enumerate(fixed_points):
+            plt.scatter(pos[0], pos[1], color='black', marker='o', s=150, facecolors='white', edgecolors='black', linewidth=2, zorder=2)
 
-    # Plot user positions
+    # Plot UAV trajectory with arrows
+    if trajectory and len(trajectory) > 1:
+        # Plot the path with arrows
+        for i in range(len(trajectory) - 1):
+            # Get current and next position
+            x1, y1 = trajectory[i]
+            x2, y2 = trajectory[i + 1]
+
+            # Calculate direction
+            dx = x2 - x1
+            dy = y2 - y1
+
+            # Plot arrow
+            plt.arrow(x1, y1, dx, dy, head_width=20, head_length=30,
+                      fc='black', ec='black', length_includes_head=True,
+                      zorder=3, alpha=0.7)
+
+        # Plot UAV position (double circle)
+        uav_pos = trajectory[-1]
+        plt.scatter(uav_pos[0], uav_pos[1], color='black', marker='o', s=200,
+                   facecolors='white', edgecolors='black', linewidth=2, zorder=4)
+        plt.scatter(uav_pos[0], uav_pos[1], color='black', marker='o', s=80,
+                   facecolors='white', edgecolors='black', linewidth=2, zorder=5)
+
+        # Add UAV label
+        if language == 'Chinese':
+            plt.text(uav_pos[0] + 30, uav_pos[1] - 30, "无人机", fontsize=12, zorder=5)
+        else:
+            plt.text(uav_pos[0] + 30, uav_pos[1] - 30, "UAV", fontsize=12, zorder=5)
+
+    # Plot user positions as stars with dotted connections
     if user_positions:
         for user_id, pos in user_positions.items():
-            # Determine color based on task status
+            # Determine if user has task
             has_task = user_tasks.get(user_id, False) if user_tasks else False
-            color = 'red' if has_task else 'blue'
 
-            plt.scatter(pos[0], pos[1], color=color, marker='o', s=80, alpha=0.7)
-            plt.text(pos[0] + 5, pos[1] + 5, f"User {user_id}", fontsize=8)
+            # Plot user as star
+            plt.scatter(pos[0], pos[1], marker='*', s=200, color='black', edgecolors='black', linewidth=1, zorder=3)
 
-    # Plot service positions
+            # Add user label
+            if language == 'Chinese':
+                plt.text(pos[0] - 30, pos[1] - 30, "用户", fontsize=10, zorder=3)
+            else:
+                plt.text(pos[0] - 30, pos[1] - 30, "User", fontsize=10, zorder=3)
+
+            # If user has task, connect to another user with dotted line
+            if has_task and len(user_positions) > 1:
+                # Find another user to connect to (not self)
+                other_users = [uid for uid in user_positions.keys() if uid != user_id]
+                if other_users:
+                    # Choose the closest user
+                    other_id = other_users[0]
+                    other_pos = user_positions[other_id]
+
+                    # Draw dotted line connection
+                    plt.plot([pos[0], other_pos[0]], [pos[1], other_pos[1]], 'k--', linewidth=1, alpha=0.7, zorder=1)
+
+    # Plot service positions if provided
     if service_positions:
         for pos in service_positions:
-            plt.scatter(pos[0], pos[1], color='purple', marker='*', s=150)
+            plt.scatter(pos[0], pos[1], color='red', marker='o', s=100, alpha=0.5, zorder=2)
 
     # Set plot limits
     plt.xlim(0, world_size[0])
     plt.ylim(0, world_size[1])
 
-    # Add grid and labels
-    plt.grid(True)
-    plt.xlabel('X (m)')
-    plt.ylabel('Y (m)')
-    plt.title(title)
-    plt.legend()
+    # Set title and labels
+    plt.title(title, fontsize=14)
+    if language == 'Chinese':
+        plt.xlabel('X 位置 (米)', fontsize=12)
+        plt.ylabel('Y 位置 (米)', fontsize=12)
+        # Add a legend for fixed points
+        plt.scatter([], [], color='black', marker='o', s=150, facecolors='white',
+                   edgecolors='black', linewidth=2, label='固定点')
+        # Add a legend for UAV
+        plt.scatter([], [], color='black', marker='o', s=150, facecolors='white',
+                   edgecolors='black', linewidth=2, label='无人机')
+        # Add a legend for users
+        plt.scatter([], [], marker='*', s=150, color='black', label='用户')
+    else:
+        plt.xlabel('X Position (m)', fontsize=12)
+        plt.ylabel('Y Position (m)', fontsize=12)
+        # Add a legend for fixed points
+        plt.scatter([], [], color='black', marker='o', s=150, facecolors='white',
+                   edgecolors='black', linewidth=2, label='Fixed Points')
+        # Add a legend for UAV
+        plt.scatter([], [], color='black', marker='o', s=150, facecolors='white',
+                   edgecolors='black', linewidth=2, label='UAV')
+        # Add a legend for users
+        plt.scatter([], [], marker='*', s=150, color='black', label='Users')
+
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.legend(loc='upper right', fontsize=10)
+
+    # Add a border around the plot
+    plt.gca().spines['top'].set_visible(True)
+    plt.gca().spines['right'].set_visible(True)
+    plt.gca().spines['bottom'].set_visible(True)
+    plt.gca().spines['left'].set_visible(True)
+    plt.gca().spines['top'].set_linewidth(2)
+    plt.gca().spines['right'].set_linewidth(2)
+    plt.gca().spines['bottom'].set_linewidth(2)
+    plt.gca().spines['left'].set_linewidth(2)
 
     # Convert plot to base64 string
     buf = BytesIO()
-    plt.savefig(buf, format='png')
+    plt.savefig(buf, format='png', dpi=150, bbox_inches='tight')
     buf.seek(0)
     plot_base64 = base64.b64encode(buf.read()).decode('utf-8')
     plt.close(fig)

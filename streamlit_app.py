@@ -248,34 +248,41 @@ def show_simulation_page(language):
                 from io import BytesIO
                 import base64
 
-                # Create trajectory plot
-                fig_trajectory = plt.figure(figsize=(10, 8))
+                # Create trajectory plot using the new visualization style
+                from visualization.plotter import plot_trajectory_with_users
 
-                # Plot UAV trajectory
-                x = [pos[0] for pos in trajectory]
-                y = [pos[1] for pos in trajectory]
-                plt.plot(x, y, 'b-', linewidth=2, label="UAV Path")
-                plt.plot(x[0], y[0], 'go', markersize=10, label="Start")
-                plt.plot(x[-1], y[-1], 'ro', markersize=10, label="End")
+                # Generate fixed points (waypoints) along the trajectory
+                if trajectory and len(trajectory) > 5:
+                    step = len(trajectory) // 5
+                    fixed_points = [trajectory[i] for i in range(0, len(trajectory), step)]
+                else:
+                    fixed_points = []
 
-                # Plot users with different colors based on task status
-                for user_id, pos in user_positions.items():
-                    color = 'red' if user_tasks.get(user_id, False) else 'blue'
-                    plt.scatter(pos[0], pos[1], c=color, s=100, marker='o', alpha=0.7)
-                    plt.annotate(f"User {user_id}", (pos[0], pos[1]), textcoords="offset points", xytext=(0,10), ha='center')
+                # Get service positions (where UAV serviced users)
+                service_positions = []
+                for step_data in env.get_stats_log():
+                    if step_data.get('servicing_user') is not None:
+                        service_positions.append(step_data.get('uav_position'))
 
-                # Add legend entries for users with and without tasks
-                plt.scatter([], [], c='red', s=100, marker='o', alpha=0.7, label='User with Task')
-                plt.scatter([], [], c='blue', s=100, marker='o', alpha=0.7, label='User without Task')
+                # Generate the plot using our enhanced visualization function
+                trajectory_plot_base64 = plot_trajectory_with_users(
+                    trajectory=trajectory,
+                    user_positions=user_positions,
+                    user_tasks=user_tasks,
+                    world_size=(env.world_size, env.world_size),
+                    fixed_points=fixed_points,
+                    service_positions=service_positions,
+                    title=f"UAV Path Planning Simulation - {algorithm}",
+                    language="Chinese" if language == "中文" else "English"
+                )
 
-                # Set plot properties
-                plt.xlim(0, env.world_size[0])
-                plt.ylim(0, env.world_size[1])
-                plt.grid(True, linestyle='--', alpha=0.7)
-                plt.title(f'{algorithm} Trajectory', fontsize=16)
-                plt.xlabel('X Coordinate (m)', fontsize=12)
-                plt.ylabel('Y Coordinate (m)', fontsize=12)
-                plt.legend(loc='upper right')
+                # Create a figure from the base64 image
+                from PIL import Image
+                import io
+
+                # Convert base64 to image
+                img_data = base64.b64decode(trajectory_plot_base64)
+                fig_trajectory = Image.open(io.BytesIO(img_data))
 
                 # Create energy plot
                 fig_energy = plt.figure(figsize=(10, 6))
